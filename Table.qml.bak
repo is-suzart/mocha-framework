@@ -1,0 +1,364 @@
+import QtQuick 2.15
+import QtQuick.Layouts 1.15
+
+Item {
+    id: root
+
+    // ==========================================
+    // Public API (Properties)
+    // ==========================================
+    
+    property var columns: []
+    property var rows: []
+    property var selectedIndexes: []
+
+    property string sortColumn: ""
+    property string sortOrder: "asc"
+
+    property int pageSize: 5
+    property int currentPage: 1
+    property bool showPagination: true
+    property bool selectable: true
+
+    // ==========================================
+    // Signals
+    // ==========================================
+    signal selectionChanged(var indexes)
+    signal sortChanged(string column, string order)
+    signal editSelected(var selectedRows)
+    signal downloadSelected(var selectedRows)
+    signal deleteSelected(var selectedRows)
+
+    // ==========================================
+    // Internal Properties & Calculations
+    // ==========================================
+    readonly property int totalRecords: rows ? rows.length : 0
+    readonly property int totalPages: Math.ceil(totalRecords / pageSize)
+
+    readonly property bool isSelectionIndeterminate: selectedIndexes.length > 0 && selectedIndexes.length < totalRecords
+    readonly property bool isAllSelected: totalRecords > 0 && selectedIndexes.length === totalRecords
+
+    // Defensive width calculations
+    readonly property real baseColumnsWidth: {
+        var w = 0;
+        if (root.columns && root.columns.length > 0) {
+            for (var i = 0; i < root.columns.length; i++) {
+                w += (root.columns[i].width || 120);
+            }
+        }
+        return Math.max(w, 1);
+    }
+
+    readonly property real columnWidthMultiplier: {
+        var checkboxW = root.selectable ? 44 : 0;
+        var availableW = root.width - checkboxW;
+        return (availableW > root.baseColumnsWidth) ? (availableW / root.baseColumnsWidth) : 1.0;
+    }
+
+    readonly property real calculatedTableWidth: (selectable ? 44 : 0) + (baseColumnsWidth * columnWidthMultiplier)
+
+    function getColWidth(index) {
+        if (!columns || index < 0 || index >= columns.length) return 0;
+        var baseW = columns[index].width || 120;
+        return baseW * root.columnWidthMultiplier;
+    }
+
+    function getColX(index) {
+        var x = 0;
+        for (var i = 0; i < index; i++) {
+            x += getColWidth(i);
+        }
+        return x;
+    }
+
+    // Sorting & Pagination Logic
+    function getSortedRows() {
+        if (!rows) return [];
+        if (!sortColumn) return rows;
+        var sorted = rows.slice(0);
+        sorted.sort(function(a, b) {
+            var valA = a[sortColumn], valB = b[sortColumn];
+            if (valA == null) valA = ""; if (valB == null) valB = "";
+            if (typeof valA === "string" && valA.indexOf("R$") !== -1) valA = parseFloat(valA.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+            if (typeof valB === "string" && valB.indexOf("R$") !== -1) valB = parseFloat(valB.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+            if (!isNaN(valA) && !isNaN(valB) && typeof valA !== "string" && typeof valB !== "string") return sortOrder === "asc" ? valA - valB : valB - valA;
+            var strA = String(valA).toLowerCase(), strB = String(valB).toLowerCase();
+            if (strA < strB) return sortOrder === "asc" ? -1 : 1;
+            if (strA > strB) return sortOrder === "asc" ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }
+
+    readonly property var paginatedRows: {
+        var sorted = getSortedRows();
+        if (!showPagination) return sorted;
+        var start = (currentPage - 1) * pageSize;
+        return sorted.slice(start, start + pageSize);
+    }
+
+    // Selection Helpers
+    function toggleRowSelection(rowIndex) {
+        var indexes = selectedIndexes.slice(0);
+        var idx = indexes.indexOf(rowIndex);
+        if (idx !== -1) indexes.splice(idx, 1);
+        else indexes.push(rowIndex);
+        selectedIndexes = indexes;
+        root.selectionChanged(selectedIndexes);
+    }
+
+    function toggleSelectAll() {
+        if (isAllSelected) selectedIndexes = [];
+        else {
+            var indexes = [];
+            for (var i = 0; i < totalRecords; i++) indexes.push(i);
+            selectedIndexes = indexes;
+        }
+        root.selectionChanged(selectedIndexes);
+    }
+
+    function getSelectedRowsObjects() {
+        var selected = [];
+        for (var i = 0; i < selectedIndexes.length; i++) {
+            var idx = selectedIndexes[i];
+            if (idx >= 0 && idx < rows.length) selected.push(rows[idx]);
+        }
+        return selected;
+    }
+
+    // Layout Dimensions
+    implicitWidth: 800
+    implicitHeight: 450
+    width: implicitWidth
+    height: implicitHeight
+
+    // ==========================================
+    // Visual Tree
+    // ==========================================
+    Column {
+        anchors.fill: parent
+        spacing: 0
+
+        // 1. Selection Toolbar
+        Rectangle {
+            id: selectionToolbar
+            width: parent.width
+            height: root.selectedIndexes.length > 0 ? 46 : 0
+            color: Theme.colors.mantle
+            radius: Theme.geometry.radiusMd
+            clip: true
+            z: 10
+            Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
+
+            Row {
+                anchors.fill: parent
+                anchors.margins: Theme.spacing.md
+                spacing: Theme.spacing.md
+                Text {
+                    text: root.selectedIndexes.length + " selecionados"
+                    font.family: Theme.typography.familyBold
+                    color: Theme.colors.text
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Item {
+                    height: 1
+                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.fillWidth: true
+                } // Spacer
+                Button { icon: "trash-2"; variant: "ghost"; size: "sm"; onClicked: root.deleteSelected(root.getSelectedRowsObjects()) }
+            }
+        }
+
+        Item { width: parent.width; height: root.selectedIndexes.length > 0 ? Theme.spacing.sm : 0 }
+
+        // 2. Table Main Area
+        Rectangle {
+            width: parent.width
+            height: parent.height - selectionToolbar.height - (root.selectedIndexes.length > 0 ? Theme.spacing.sm : 0) - (root.showPagination ? 50 : 0)
+            color: Theme.colors.base
+            border.color: Theme.colors.surface0
+            radius: Theme.geometry.radiusMd
+            clip: true
+
+            Flickable {
+                anchors.fill: parent
+                contentWidth: Math.max(width, root.calculatedTableWidth)
+                contentHeight: tableBodyColumn.implicitHeight + 44
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: tableBodyColumn
+                    width: parent.contentWidth
+                    spacing: 0
+
+                    // Header
+                    Rectangle {
+                        width: parent.width
+                        height: 44
+                        color: Theme.colors.mantle
+                        z: 5
+
+                        // Checkbox Header
+                        Item {
+                            id: headerCheckboxContainer
+                            width: 44; height: 44
+                            visible: root.selectable
+                            Rectangle {
+                                width: 18; height: 18; anchors.centerIn: parent
+                                radius: Theme.geometry.radiusSm
+                                color: (root.isAllSelected || root.isSelectionIndeterminate) ? Theme.colors.primary : "transparent"
+                                border.color: Theme.colors.surface2
+                                MouseArea { anchors.fill: parent; onClicked: root.toggleSelectAll() }
+                            }
+                        }
+
+                        // Labels Header
+                        Repeater {
+                            model: root.columns
+                            delegate: Item {
+                                x: (root.selectable ? 44 : 0) + root.getColX(index)
+                                width: root.getColWidth(index)
+                                height: 44
+                                Text {
+                                    text: modelData.label
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: Theme.spacing.md
+                                    font.family: Theme.typography.familyBold
+                                    color: Theme.colors.subtext1
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        if (modelData.sortable) {
+                                            if (root.sortColumn === modelData.name) root.sortOrder = (root.sortOrder === "asc" ? "desc" : "asc");
+                                            else { root.sortColumn = modelData.name; root.sortOrder = "asc"; }
+                                            root.sortChanged(root.sortColumn, root.sortOrder);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Body Rows
+                    Repeater {
+                        model: root.paginatedRows
+                        delegate: Rectangle {
+                            id: rowDelegate
+                            width: tableBodyColumn.width
+                            height: 48
+                            color: rowMouseArea.containsMouse ? Theme.colors.surface0 : "transparent"
+                            border.color: Theme.colors.surface0
+                            border.width: 1
+
+                            readonly property var rowData: modelData
+                            readonly property int globalIndex: root.showPagination ? (root.currentPage - 1) * root.pageSize + index : index
+                            readonly property bool isSelected: root.selectedIndexes.indexOf(globalIndex) !== -1
+
+                            // Checkbox Cell
+                            Item {
+                                id: cellCheckboxContainer
+                                width: 44; height: 48
+                                visible: root.selectable
+                                Rectangle {
+                                    width: 18; height: 18; anchors.centerIn: parent
+                                    radius: Theme.geometry.radiusSm
+                                    color: rowDelegate.isSelected ? Theme.colors.primary : "transparent"
+                                    border.color: Theme.colors.surface2
+                                }
+                            }
+
+                            // Data Cells
+                            Repeater {
+                                model: root.columns
+                                delegate: Item {
+                                    x: (root.selectable ? 44 : 0) + root.getColX(index)
+                                    width: root.getColWidth(index)
+                                    height: 48
+                                    clip: true
+                                    
+                                    Loader {
+                                        id: cellLoader
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: Theme.spacing.md
+                                        width: parent.width - Theme.spacing.md * 2
+
+                                        sourceComponent: {
+                                            if (modelData.type === "badge") return badgeCellComponent;
+                                            return textCellComponent;
+                                        }
+
+                                        readonly property string textValue: {
+                                            var val = (rowDelegate.rowData && modelData.name) ? rowDelegate.rowData[modelData.name] : "";
+                                            return val !== undefined && val !== null ? String(val) : "";
+                                        }
+                                        readonly property bool fontBold: modelData.type === "bold"
+                                        readonly property color textColor: {
+                                            if (modelData.type === "subtext") return Theme.colors.subtext0;
+                                            if (modelData.type === "bold") return Theme.colors.text;
+                                            return Theme.colors.subtext1;
+                                        }
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: rowMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: root.toggleRowSelection(rowDelegate.globalIndex)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Footer
+        Rectangle {
+            width: parent.width
+            height: 50
+            color: "transparent"
+            visible: root.showPagination
+            Row {
+                anchors.centerIn: parent
+                spacing: 20
+                Button { text: "<"; onClicked: root.currentPage = Math.max(1, root.currentPage - 1) }
+                Text { text: "Página " + root.currentPage + " de " + root.totalPages; color: Theme.colors.subtext0 }
+                Button { text: ">"; onClicked: root.currentPage = Math.min(root.totalPages, root.currentPage + 1) }
+            }
+        }
+    }
+
+    // ==========================================
+    // Cell Component Templates
+    // ==========================================
+    Component {
+        id: textCellComponent
+        Text {
+            text: parent ? parent.textValue : ""
+            font.family: (parent && parent.fontBold) ? Theme.typography.familyBold : Theme.typography.family
+            font.pixelSize: Theme.typography.sizeMd
+            color: (parent && parent.textColor) ? parent.textColor : Theme.colors.text
+            elide: Text.ElideRight
+            width: parent ? parent.width : 0
+            antialiasing: true
+        }
+    }
+
+    Component {
+        id: badgeCellComponent
+        Badge {
+            text: parent ? parent.textValue : ""
+            variant: {
+                var valLower = String(text).toLowerCase();
+                if (valLower === "ativo" || valLower === "active" || valLower === "sucesso") return "success";
+                if (valLower === "pendente" || valLower === "pending") return "warning";
+                if (valLower === "inativo" || valLower === "inactive" || valLower === "cancelado") return "danger";
+                return "primary";
+            }
+        }
+    }
+}
