@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -20,10 +20,11 @@ Window {
         { id: "inputs", label: "Inputs", icon: "edit-3", components: ["TextField", "Checkbox", "RadioButton", "RadioGroup", "Select", "AdvancedSelect", "SelectTree", "Slider", "Tag", "PinInput", "DatePicker", "RangeSelector", "ColorPicker", "CozyColorPicker"] },
         { id: "text", label: "Texto", icon: "file-text", components: ["TextEditor", "AdvancedTextEditor", "FormField", "DynamicForm"] },
         { id: "display", label: "Display", icon: "eye", components: ["HeroCarousel", "Badge", "Avatar", "ProgressBar", "Spinner", "Skeleton", "Tooltip", "Toast", "StripedFill", "SteppedProgress", "Stepper"] },
-        { id: "layout", label: "Layout", icon: "layout", components: ["Card", "Tile", "Accordion", "Modal", "AlertDialog", "Drawer", "EmptyState", "Separator", "Shell", "CozyGrid"] },
+        { id: "layout", label: "Layout", icon: "layout", components: ["HStack", "VStack", "Box", "Card", "Tile", "Accordion", "Modal", "AlertDialog", "Drawer", "EmptyState", "Separator", "Shell", "CozyGrid"] },
         { id: "data", label: "Dados", icon: "database", components: ["Table", "Paginator", "InteractiveListCell", "CozyList"] },
         { id: "charts", label: "Gráficos", icon: "pie-chart", components: ["Charts", "PieChart", "BarChart", "LineChart"] },
-        { id: "navigation", label: "Navegação", icon: "navigation", components: ["Navigation", "NavigationBar", "Sidebar", "Breadcrumb"] }
+        { id: "navigation", label: "Navegação", icon: "navigation", components: ["Navigation", "NavigationBar", "Sidebar", "Breadcrumb"] },
+        { id: "interactivity", label: "Interatividade", icon: "move", components: ["Draggable", "DropZone", "SortableList", "Kanban"] }
     ]
 
     property int activeCategoryIndex: 0
@@ -107,7 +108,7 @@ Window {
                 model: categories
                 currentIndex: activeCategoryIndex
                 variant: "line"
-                onTabSelected: activeCategoryIndex = index
+                onTabSelected: function(index) { activeCategoryIndex = index }
             }
 
             Rectangle {
@@ -154,7 +155,7 @@ Window {
                             stepsCount: activeCategory.components.length
                             labels: activeCategory.components
                             currentStep: activeComponentIndex
-                            onChangeStep: activeComponentIndex = step
+                            onChangeStep: function(step) { activeComponentIndex = step }
                         }
                     }
                 }

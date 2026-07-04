@@ -1,5 +1,5 @@
 pragma Singleton
-import QtQuick 2.15
+import QtQuick
 
 Item {
     id: root
@@ -306,6 +306,15 @@ Item {
         readonly property color warning: yellow
         readonly property color danger: red
         readonly property color info: sky
+    }
+
+    // Breakpoints (Tailwind-inspired)
+    readonly property QtObject breakpoints: QtObject {
+        readonly property real xs: 0
+        readonly property real sm: 640
+        readonly property real md: 768
+        readonly property real lg: 1024
+        readonly property real xl: 1280
     }
 
     // Typography Config

@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 
 // Dropdown — Contextual action menu that opens near a trigger item.
 //
@@ -27,12 +27,13 @@ Item {
     property string placement: "bottom-start" // "bottom-start"|"bottom-end"|"top-start"|"top-end"
     property real   minWidth: 180
     property bool   isOpen: false
+    property bool   disabled: false
     property string _actualPlacement: placement
 
     signal itemSelected(var item)
 
-    function toggle(triggerItem) { isOpen ? _close() : _open(triggerItem) }
-    function open(triggerItem)   { _open(triggerItem) }
+    function toggle(triggerItem) { if (!root.disabled) { isOpen ? _close() : _open(triggerItem) } }
+    function open(triggerItem)   { if (!root.disabled) { _open(triggerItem) } }
     function close()             { _close() }
 
     // ==========================================
