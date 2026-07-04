@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import ".." as DS
@@ -6,18 +6,21 @@ import ".." as DS
 Playground {
     id: pg
     title: "CozyList"
-    description: "Lista coesa com modelo de dados e template rowContent."
+    description: "Lista coesa com modelo de dados e template rowContent. Suporta reordenação por drag (sortable)."
 
     componentItem: [
         DS.CozyList {
             anchors.fill: parent
             anchors.margins: DS.Theme.spacing.xl
 
+            sortable: sortableSwitch.checked
+
             model: [
                 { title: "Introdução", desc: "Primeiros passos" },
                 { title: "Componentes", desc: "Visão geral do DS" },
                 { title: "Temas", desc: "Personalização de cores" },
-                { title: "Exemplos", desc: "Casos de uso reais" }
+                { title: "Exemplos", desc: "Casos de uso reais" },
+                { title: "Drag & Drop", desc: "Reordenar itens" }
             ]
 
             rowContent: Row {
@@ -32,7 +35,7 @@ Playground {
                     spacing: 2
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
-                        text: modelData.title
+                        text: "#" + index + " - " + modelData.title
                         font.family: DS.Theme.typography.familyMedium
                         font.pixelSize: DS.Theme.typography.sizeMd
                         color: DS.Theme.colors.text
@@ -48,5 +51,11 @@ Playground {
         }
     ]
 
-    controls: []
+    controls: [
+        PlaygroundCtrlSwitch {
+            id: sortableSwitch
+            label: "Sortable (Reordenação por Drag)"
+            checked: false
+        }
+    ]
 }

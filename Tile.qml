@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 
 Item {
     id: root
@@ -27,6 +27,10 @@ Item {
 
     // If true, enables hover states, pointing hand cursor, scaling animation and click signals
     property bool interactive: true
+
+    // Drag support (for dashboard reordering)
+    property bool draggable: false
+    property string dragKey: "mochads-tile"
 
     // Visual customizations (Overrides)
     property string backgroundColor: ""
@@ -122,11 +126,53 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
+    Drag.keys: root.draggable ? [root.dragKey] : []
+    Drag.source: root
+    Drag.hotSpot.x: root.width / 2
+    Drag.hotSpot.y: root.height / 2
+    Drag.active: root.draggable && dragHandler.active
+
     // Cozy scale and hover micro-animations
-    scale: interactive ? (mouseArea.pressed ? 0.98 : (mouseArea.containsMouse ? 1.01 : 1.0)) : 1.0
+    scale: dragHandler.active ? 1.03 : (interactive ? (mouseArea.pressed ? 0.98 : (mouseArea.containsMouse ? 1.01 : 1.0)) : 1.0)
+    opacity: dragHandler.active ? 0.9 : 1.0
+    z: dragHandler.active ? 100 : 0
 
     Behavior on scale {
         NumberAnimation { duration: 120; easing.type: Easing.OutBack }
+    }
+    Behavior on opacity {
+        NumberAnimation { duration: 120 }
+    }
+
+    DragHandler {
+        id: dragHandler
+        enabled: root.draggable
+        dragThreshold: 10
+        acceptedButtons: Qt.LeftButton
+
+        onActiveChanged: {
+            if (active) {
+                Drag.hotSpot.x = root.width / 2
+                Drag.hotSpot.y = root.height / 2
+            } else {
+                Drag.drop()
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -8
+        radius: root.finalRadius + 8
+        color: "transparent"
+        visible: dragHandler.active
+        z: -1
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: Qt.rgba(0, 0, 0, 0.2)
+        }
     }
 
     // ==========================================
@@ -263,8 +309,9 @@ Item {
         id: mouseArea
         anchors.fill: parent
         hoverEnabled: true
-        enabled: root.interactive
-        cursorShape: Qt.PointingHandCursor
+        enabled: root.interactive || root.draggable
+        cursorShape: dragHandler.active ? Qt.ClosedHandCursor : (root.draggable && containsMouse ? Qt.OpenHandCursor : Qt.PointingHandCursor)
+
         onClicked: root.clicked()
     }
 }

@@ -1,5 +1,5 @@
-import QtQuick 2.15
-import QtTest 1.15
+import QtQuick
+import QtTest
 import ".." // Import local MochaDS files
 
 TestCase {

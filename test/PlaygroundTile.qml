@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import ".." as DS
@@ -6,23 +6,72 @@ import ".." as DS
 Playground {
     id: pg
     title: "Tile"
-    description: "Blocos informativos compactos para dashboards e resumos de dados."
+    description: "Blocos informativos compactos para dashboards e resumos de dados. Suporta drag para dashboards modulares."
 
     componentItem: [
-        Row {
+        Column {
             anchors.centerIn: parent
-            spacing: DS.Theme.spacing.lg
+            spacing: DS.Theme.spacing.xl
 
-            DS.Tile {
-                width: 250
-                height: 140
-                title: tileTitle.text
-                description: tileDesc.text
-                icon: tileIcon.text
-                variant: variantSelect.model[variantSelect.currentIndex]
-                backgroundColor: bgSelect.model[bgSelect.currentIndex] === "none" ? "" : bgSelect.model[bgSelect.currentIndex]
-                active: activeSwitch.checked
-                interactive: interactiveSwitch.checked
+            Row {
+                spacing: DS.Theme.spacing.lg
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                DS.Tile {
+                    width: 200
+                    height: 120
+                    title: "Faturamento"
+                    description: "R$ 45.200 (+15%)"
+                    icon: "dollar-sign"
+                    variant: variantSelect.model[variantSelect.currentIndex]
+                    backgroundColor: bgSelect.model[bgSelect.currentIndex] === "none" ? "" : bgSelect.model[bgSelect.currentIndex]
+                    active: activeSwitch.checked
+                    interactive: interactiveSwitch.checked
+                    draggable: draggableSwitch.checked
+                }
+
+                DS.Tile {
+                    width: 200
+                    height: 120
+                    title: "Usuários"
+                    description: "2.847 ativos"
+                    icon: "users"
+                    variant: variantSelect.model[variantSelect.currentIndex]
+                    backgroundColor: bgSelect.model[bgSelect.currentIndex] === "none" ? "" : bgSelect.model[bgSelect.currentIndex]
+                    interactive: interactiveSwitch.checked
+                    draggable: draggableSwitch.checked
+                }
+            }
+
+            DS.DropZone {
+                id: tileDropZone
+                key: "mochads-tile"
+                width: 450
+                height: 60
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: draggableSwitch.checked
+                accentColor: DS.Theme.colors.primary
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "transparent"
+                    radius: DS.Theme.geometry.radiusMd
+                    border.color: tileDropZone.containsDrag ? DS.Theme.colors.primary : DS.Theme.colors.surface0
+                    border.width: 2
+                    border.style: tileDropZone.containsDrag ? Qt.SolidLine : Qt.DashLine
+
+                    Text {
+                        text: tileDropZone.containsDrag ? "Solte aqui para adicionar ao dashboard" : "Zona de Dashboard (arraste um tile)"
+                        font.family: DS.Theme.typography.family
+                        font.pixelSize: DS.Theme.typography.sizeSm
+                        color: tileDropZone.containsDrag ? DS.Theme.colors.primary : DS.Theme.colors.subtext0
+                        anchors.centerIn: parent
+                    }
+                }
+
+                onDropped: function(source) {
+                    console.log("Tile adicionado ao dashboard:", source.title)
+                }
             }
         }
     ]
@@ -65,6 +114,11 @@ Playground {
             id: interactiveSwitch
             label: "Interativo"
             checked: true
+        },
+        PlaygroundCtrlSwitch {
+            id: draggableSwitch
+            label: "Draggable (Arrastável)"
+            checked: false
         }
     ]
 }

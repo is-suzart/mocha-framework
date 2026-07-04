@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 import QtQuick.Layouts
 
 
@@ -28,6 +28,16 @@ Item {
     // Loading State
     property bool isLoading: false
 
+    // Sortable (Drag & Drop Reordering)
+    property bool sortable: false
+    property string listId: ""
+    property string sortableDragKey: "mochads-sortable"
+    signal itemsReordered(int fromIndex, int toIndex)
+
+    property int dragIndex: -1
+    property int dragTargetIndex: -1
+    property bool isDragging: false
+
     // Reactive empty check
     readonly property bool isEmpty: {
         if (root.model === null || root.model === undefined)
@@ -53,10 +63,8 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
-    // The Wrapper: ListView
+    // The Wrapper: ListView (with optional sortable DelegateModel)
     ListView {
-        // Developers can hook into lists or handle list actions
-
         id: listView
 
         anchors.fill: parent
@@ -66,26 +74,153 @@ Item {
         anchors.bottomMargin: root.paddingBottom
         clip: true
         spacing: root.spacing
-        model: root.model
         visible: !root.isEmpty && !root.isLoading
-        // Performance features
-        reuseItems: true
+        reuseItems: false
 
-        delegate: InteractiveListCell {
-            // Subtract space for the scrollbar if it is visible to prevent overlap
-            width: listView.width - (scrollBar.shouldShow ? scrollBar.width : 0)
-            rowContent: root.rowContent
-            
-            // Pass contexts down explicitly
-            cellModelData: typeof modelData !== "undefined" ? modelData : (typeof model !== "undefined" ? model : null)
-            cellIndex: index
-            
-            // Selection / Active handling
-            isSelected: false
-            onClicked: {
+        model: DelegateModel {
+            id: visualModel
+            model: root.model
+
+            delegate: Item {
+                id: delegateRoot
+                width: listView.width - (scrollBar.shouldShow ? scrollBar.width : 0)
+                height: cellLoader.implicitHeight
+
+                property int _index: DelegateModel.itemsIndex
+                property bool held: false
+
+                scale: delegateRoot.held ? 1.03 : 1.0
+                opacity: delegateRoot.held ? 0.85 : 1.0
+                z: delegateRoot.held ? 100 : 0
+
+                Behavior on scale {
+                    NumberAnimation { duration: 120; easing.type: Easing.OutBack }
+                }
+                Behavior on opacity {
+                    NumberAnimation { duration: 120 }
+                }
+                Behavior on y {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+
+                MouseArea {
+                    id: ma
+                    anchors.fill: parent
+                    hoverEnabled: root.sortable
+                    enabled: root.sortable
+                    acceptedButtons: Qt.NoButton
+                    cursorShape: delegateRoot.held ? Qt.ClosedHandCursor : (containsMouse ? Qt.OpenHandCursor : Qt.ArrowCursor)
+                }
+
+                DragHandler {
+                    id: dragHandler
+                    target: null
+                    enabled: root.sortable
+                    dragThreshold: 8
+                    acceptedButtons: Qt.LeftButton
+
+                    onActiveChanged: {
+                        if (active) {
+                            root.isDragging = true
+                            delegateRoot.held = true
+                            root.dragIndex = delegateRoot._index
+                            root.dragTargetIndex = delegateRoot._index
+                            dragGhost.__sourceListId = root.listId
+                            dragGhost.__sourceIndex = delegateRoot._index
+                            var pos = delegateRoot.mapToItem(root,
+                                centroid.position.x,
+                                centroid.position.y)
+                            dragGhost.x = pos.x - dragGhost.width / 2
+                            dragGhost.y = pos.y - dragGhost.height / 2
+                        } else {
+                            var fromIndex = root.dragIndex
+                            var toIndex = root.dragTargetIndex
+                            delegateRoot.held = false
+                            root.isDragging = false
+                            Drag.drop()
+                            if (toIndex >= 0 && toIndex !== fromIndex) {
+                                visualModel.items.move(fromIndex, toIndex)
+                                root.itemsReordered(fromIndex, toIndex)
+                            }
+                            root.dragIndex = -1
+                            root.dragTargetIndex = -1
+                            dragGhost.__sourceListId = ""
+                            dragGhost.__sourceIndex = -1
+                        }
+                    }
+
+                    onTranslationChanged: {
+                        if (active) {
+                            var pos = delegateRoot.mapToItem(root,
+                                centroid.position.x,
+                                centroid.position.y)
+                            dragGhost.x = pos.x - dragGhost.width / 2
+                            dragGhost.y = pos.y - dragGhost.height / 2
+                        }
+                    }
+                }
+
+                InteractiveListCell {
+                    id: cellLoader
+                    width: parent.width
+                    rowContent: root.rowContent
+                    cellModelData: typeof modelData !== "undefined" ? modelData : (typeof model !== "undefined" ? model : null)
+                    cellIndex: DelegateModel.itemsIndex
+                    isSelected: false
+                    onClicked: {}
+                }
+
+                DropArea {
+                    id: dropArea
+                    anchors.fill: parent
+                    anchors.topMargin: -4
+                    anchors.bottomMargin: -4
+                    keys: root.sortable ? [root.sortableDragKey] : []
+
+                    onEntered: {
+                        if (!root.sortable) return
+                        root.dragTargetIndex = delegateRoot._index
+                    }
+
+                    onExited: {
+                        if (!root.sortable) return
+                        if (root.dragTargetIndex === delegateRoot._index) {
+                            root.dragTargetIndex = -1
+                        }
+                    }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.colors.primary
+                    opacity: dropArea.containsDrag ? 0.2 : 0
+                    radius: Theme.geometry.radiusMd
+                    z: 10
+                    border.color: Theme.colors.primary
+                    border.width: dropArea.containsDrag ? 2 : 0
+                    Behavior on opacity {
+                        NumberAnimation { duration: 150 }
+                    }
+                    Behavior on border.width {
+                        NumberAnimation { duration: 150 }
+                    }
+                }
             }
         }
 
+    }
+
+    Item {
+        id: dragGhost
+        property string __sourceListId: ""
+        property int __sourceIndex: -1
+        visible: root.isDragging
+        width: 8; height: 8
+        Drag.keys: root.sortable ? [root.sortableDragKey] : []
+        Drag.active: root.isDragging
+        Drag.source: dragGhost
+        Drag.hotSpot.x: width / 2
+        Drag.hotSpot.y: height / 2
     }
 
     // Skeleton Shimmer Loading State Layout

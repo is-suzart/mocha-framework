@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 
 Item {
     id: root
@@ -10,6 +10,10 @@ Item {
     property bool removable: false
     property bool selected: false
     property string icon: ""
+
+    // Drag support
+    property bool draggable: false
+    property string dragKey: "mochads-tag"
 
     signal removed()
     signal clicked()
@@ -44,6 +48,35 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
+    Drag.keys: root.draggable ? [root.dragKey] : []
+    Drag.source: root
+    Drag.hotSpot.x: root.width / 2
+    Drag.hotSpot.y: root.height / 2
+    Drag.active: root.draggable && dragHandler.active
+
+    scale: dragHandler.active ? 1.1 : (mouseArea.containsMouse && !dragHandler.active && root.draggable ? 1.05 : 1.0)
+    opacity: dragHandler.active ? 0.85 : 1.0
+    z: dragHandler.active ? 100 : 0
+
+    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack } }
+    Behavior on opacity { NumberAnimation { duration: 120 } }
+
+    DragHandler {
+        id: dragHandler
+        enabled: root.draggable
+        dragThreshold: 8
+        acceptedButtons: Qt.LeftButton
+
+        onActiveChanged: {
+            if (active) {
+                Drag.hotSpot.x = root.width / 2
+                Drag.hotSpot.y = root.height / 2
+            } else {
+                Drag.drop()
+            }
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.geometry.radiusPill
@@ -52,6 +85,21 @@ Item {
         border.width: root.selected ? 2 : Theme.geometry.borderSm
 
         Behavior on color { ColorAnimation { duration: 150 } }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -6
+        radius: Theme.geometry.radiusPill + 6
+        color: "transparent"
+        visible: dragArea.drag.active
+        z: -1
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: Qt.rgba(0, 0, 0, 0.2)
+        }
     }
 
     Row {
@@ -92,8 +140,11 @@ Item {
     }
 
     MouseArea {
+        id: mouseArea
         anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
+        hoverEnabled: true
+        cursorShape: dragHandler.active ? Qt.ClosedHandCursor : (root.draggable && containsMouse ? Qt.OpenHandCursor : Qt.PointingHandCursor)
+
         onClicked: root.clicked()
     }
 }

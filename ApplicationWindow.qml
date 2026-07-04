@@ -1,6 +1,6 @@
-import QtQuick 2.15
+import QtQuick
 import QtQuick.Controls
-import MochaDS 1.0
+import MochaDS
 import "." as DS
 
 ApplicationWindow {
