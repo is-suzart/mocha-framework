@@ -8,9 +8,6 @@ Item {
     property real offset: 20
     property bool trigger: true
 
-    property bool triggerOnVisibility: false
-    property real visibilityThreshold: 0.3
-
     default property alias data: container.data
 
     implicitWidth: container.implicitWidth
@@ -29,9 +26,9 @@ Item {
 
     transform: Translate {
         id: slideTransform
-        y: root.offset
+        x: -root.offset
 
-        Behavior on y {
+        Behavior on x {
             NumberAnimation {
                 duration: root.duration
                 easing.type: Easing.OutCubic
@@ -46,38 +43,16 @@ Item {
 
     onTriggerChanged: {
         if (trigger) slideIn()
-        else { root.opacity = 0; slideTransform.y = root.offset }
-        if (!trigger && triggerOnVisibility) startVisibilityCheck()
+        else { root.opacity = 0; slideTransform.x = -root.offset }
     }
 
     function slideIn() {
-        visibilityTimer.stop()
         if (delay > 0) {
             slideTimer.restart()
         } else {
             root.opacity = 1
-            slideTransform.y = 0
+            slideTransform.x = 0
         }
-    }
-
-    function startVisibilityCheck() {
-        if (!triggerOnVisibility) return
-        visibilityTimer.start()
-    }
-
-    function checkVisibility() {
-        if (!parent || root.trigger) return
-        var pos = mapToItem(parent, 0, 0)
-        if (pos.y + root.height * root.visibilityThreshold < parent.height && pos.y + root.height > 0) {
-            root.trigger = true
-        }
-    }
-
-    Timer {
-        id: visibilityTimer
-        interval: 150
-        repeat: true
-        onTriggered: checkVisibility()
     }
 
     Timer {
@@ -86,15 +61,11 @@ Item {
         repeat: false
         onTriggered: {
             root.opacity = 1
-            slideTransform.y = 0
+            slideTransform.x = 0
         }
     }
 
     Component.onCompleted: {
-        if (triggerOnVisibility) {
-            Qt.callLater(startVisibilityCheck)
-        } else if (trigger) {
-            Qt.callLater(slideIn)
-        }
+        if (trigger) Qt.callLater(slideIn)
     }
 }

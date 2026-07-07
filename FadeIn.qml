@@ -7,6 +7,9 @@ Item {
     property int delay: 0
     property bool trigger: true
 
+    property bool triggerOnVisibility: false
+    property real visibilityThreshold: 0.3
+
     default property alias data: container.data
 
     implicitWidth: container.implicitWidth
@@ -30,14 +33,37 @@ Item {
 
     onTriggerChanged: {
         if (trigger) fadeIn()
+        else root.opacity = 0
+        if (!trigger && triggerOnVisibility) startVisibilityCheck()
     }
 
     function fadeIn() {
+        visibilityTimer.stop()
         if (delay > 0) {
             fadeTimer.restart()
         } else {
             root.opacity = 1
         }
+    }
+
+    function startVisibilityCheck() {
+        if (!triggerOnVisibility) return
+        visibilityTimer.start()
+    }
+
+    function checkVisibility() {
+        if (!parent || root.trigger) return
+        var pos = mapToItem(parent, 0, 0)
+        if (pos.y + root.height * root.visibilityThreshold < parent.height && pos.y + root.height > 0) {
+            root.trigger = true
+        }
+    }
+
+    Timer {
+        id: visibilityTimer
+        interval: 150
+        repeat: true
+        onTriggered: checkVisibility()
     }
 
     Timer {
@@ -48,6 +74,10 @@ Item {
     }
 
     Component.onCompleted: {
-        if (trigger) Qt.callLater(fadeIn)
+        if (triggerOnVisibility) {
+            Qt.callLater(startVisibilityCheck)
+        } else if (trigger) {
+            Qt.callLater(fadeIn)
+        }
     }
 }
