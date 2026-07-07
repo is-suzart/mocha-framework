@@ -31,15 +31,18 @@ Item {
     // Internal State
     // ==========================================
     property var flatRows: []
+    property var _expandedMap: ({})
 
     onRowsChanged: rebuildFlatRows()
     onSortColumnChanged: rebuildFlatRows()
     onSortOrderChanged: rebuildFlatRows()
 
     function toggleNode(node) {
-        node._isExpanded = !node._isExpanded;
+        var nodeId = node.id || node.name;
+        var isExp = !!_expandedMap[nodeId];
+        _expandedMap[nodeId] = !isExp;
         rebuildFlatRows();
-        rowToggled(node, node._isExpanded);
+        rowToggled(node, !isExp);
     }
 
     function sortNodes(nodes) {
@@ -80,11 +83,10 @@ Item {
             
             for (var i = 0; i < processedNodes.length; i++) {
                 var node = processedNodes[i];
+                var nodeId = node.id || node.name;
                 node._treeDepth = depth;
                 node._hasChildren = (node.children && node.children.length > 0);
-                if (node._isExpanded === undefined) {
-                    node._isExpanded = false;
-                }
+                node._isExpanded = !!root._expandedMap[nodeId];
                 
                 arr.push(node);
                 
@@ -259,7 +261,7 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
+                                    onClicked: function(mouse) {
                                         mouse.accepted = true;
                                         if (root.isAllSelected) {
                                             root.selectedIndexes = [];
@@ -311,8 +313,8 @@ Item {
                                     id: headerMouseArea
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    enabled:     modelData.sortable
-                                    cursorShape: modelData.sortable
+                                    enabled:     !!modelData.sortable
+                                    cursorShape: !!modelData.sortable
                                                  ? Qt.PointingHandCursor : Qt.ArrowCursor
                                     onClicked: root.handleHeaderClick(modelData)
                                 }
@@ -435,7 +437,7 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
+                                    onClicked: function(mouse) {
                                         mouse.accepted = true;
                                         root.toggleRowSelection(rowRect.globalIndex);
                                     }
@@ -495,7 +497,7 @@ Item {
                                                     anchors.fill: parent
                                                     anchors.margins: -4
                                                     cursorShape: Qt.PointingHandCursor
-                                                    onClicked: {
+                                                    onClicked: function(mouse) {
                                                         mouse.accepted = true;
                                                         root.toggleNode(rowRect.rowData);
                                                     }

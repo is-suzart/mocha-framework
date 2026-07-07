@@ -391,8 +391,8 @@ Item {
                                         id: headerMouseArea
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        enabled:     modelData.sortable
-                                        cursorShape: modelData.sortable
+                                        enabled:     !!modelData.sortable
+                                        cursorShape: !!modelData.sortable
                                                      ? Qt.PointingHandCursor : Qt.ArrowCursor
                                         onClicked: root.handleHeaderClick(modelData)
                                     }

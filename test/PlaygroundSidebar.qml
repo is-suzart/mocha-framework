@@ -8,41 +8,81 @@ Playground {
     description: "Menu de navegação lateral principal para aplicações complexas."
 
     componentItem: [
-        Rectangle {
-            width: 240
-            height: 500
+        Row {
             anchors.centerIn: parent
-            color: Theme.colors.mantle
-            border.color: Theme.colors.surface0
-            border.width: 1
+            spacing: 50
             
-            Sidebar {
-                anchors.fill: parent
+            // 1. Sidebar Estática (Padrão)
+            Rectangle {
+                width: 240
+                height: 500
+                color: Theme.colors.mantle
+                border.color: Theme.colors.surface0
+                border.width: 1
                 
-                SidebarHeader {
-                    title: "Mocha Console"
-                    subtitle: "v1.2.0"
-                    logoIcon: "coffee"
-                }
-                
-                Column {
-                    width: parent.width
-                    spacing: 2
+                Sidebar {
+                    anchors.fill: parent
                     
-                    Item { width: parent.width; height: 16; Text { text: "PRINCIPAL"; color: Theme.colors.subtext0; font.pixelSize: Theme.typography.sizeXs; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: Theme.spacing.sm } }
-                    SidebarItem { label: "Dashboard"; icon: "layout"; isActive: true }
-                    SidebarItem { label: "Projetos"; icon: "folder" }
-                    SidebarItem { label: "Tarefas"; icon: "check-square" }
+                    SidebarHeader { title: "Estática"; subtitle: "v1.2.0"; logoIcon: "coffee" }
                     
-                    Item { width: parent.width; height: 16; Text { text: "SISTEMA"; color: Theme.colors.subtext0; font.pixelSize: Theme.typography.sizeXs; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: Theme.spacing.sm } }
-                    SidebarItem { label: "Configurações"; icon: "settings" }
-                    SidebarItem { label: "Usuários"; icon: "users" }
+                    Column {
+                        spacing: 2
+                        Item { height: 16; Text { text: "SISTEMA"; color: Theme.colors.subtext0; font.pixelSize: Theme.typography.sizeXs; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: Theme.spacing.sm } }
+                        SidebarItem { label: "Configurações"; icon: "settings" }
+                        SidebarItem { label: "Usuários"; icon: "users" }
+                    }
+                    
+                    SidebarFooter { username: "Admin"; email: "admin@mocha.io"; avatarIcon: "log-out" }
                 }
+            }
+            
+            // 2. Sidebar Ordenável (Drag and Drop)
+            Rectangle {
+                width: 240
+                height: 500
+                color: Theme.colors.mantle
+                border.color: Theme.colors.surface0
+                border.width: 1
                 
-                SidebarFooter {
-                    username: "Admin"
-                    email: "admin@mocha.io"
-                    avatarIcon: "log-out"
+                Sidebar {
+                    anchors.fill: parent
+                    
+                    SidebarHeader { title: "Sortable"; subtitle: "Drag & Drop"; logoIcon: "move" }
+                    
+                    Column {
+                        spacing: 2
+                        Item { height: 16; Text { text: "PRINCIPAL"; color: Theme.colors.subtext0; font.pixelSize: Theme.typography.sizeXs; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: Theme.spacing.sm } }
+                        
+                        property var menuItems: [
+                            { label: "Dashboard", icon: "layout", active: true },
+                            { label: "Projetos", icon: "folder", active: false },
+                            { label: "Tarefas", icon: "check-square", active: false },
+                            { label: "Relatórios", icon: "pie-chart", active: false }
+                        ]
+                        
+                        SortableList {
+                            width: parent.width
+                            height: 160 // Altura fixa suficiente para os itens
+                            paddingLeft: 0; paddingRight: 0; paddingTop: 0; paddingBottom: 0
+                            model: parent.menuItems
+                            
+                            delegate: SidebarItem {
+                                width: ListView.view ? ListView.view.width : 240
+                                label: typeof modelData !== "undefined" && modelData ? modelData.label : ""
+                                icon: typeof modelData !== "undefined" && modelData ? modelData.icon : ""
+                                isActive: typeof modelData !== "undefined" && modelData ? modelData.active : false
+                            }
+                            
+                            onItemsReordered: function(fromIndex, toIndex) {
+                                var newItems = parent.menuItems.slice()
+                                var item = newItems.splice(fromIndex, 1)[0]
+                                newItems.splice(toIndex, 0, item)
+                                parent.menuItems = newItems
+                            }
+                        }
+                    }
+                    
+                    SidebarFooter { username: "User"; email: "user@mocha.io"; avatarIcon: "user" }
                 }
             }
         }
