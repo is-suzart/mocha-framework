@@ -15,7 +15,7 @@ Item {
     // Signals
     signal dismissed()
 
-    // ==========================================
+    // =============================q=============
     // Internal States & Helpers
     // ==========================================
     property int remainingTime: duration

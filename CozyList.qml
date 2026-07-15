@@ -33,6 +33,7 @@ Item {
     property string listId: ""
     property string sortableDragKey: "mochads-sortable"
     signal itemsReordered(int fromIndex, int toIndex)
+    signal itemClicked(var modelData)
 
     property int dragIndex: -1
     property int dragTargetIndex: -1
@@ -169,7 +170,9 @@ Item {
                     cellModelData: typeof modelData !== "undefined" ? modelData : (typeof model !== "undefined" ? model : null)
                     cellIndex: DelegateModel.itemsIndex
                     isSelected: false
-                    onClicked: {}
+                    onClicked: {
+                        root.itemClicked(cellModelData)
+                    }
                 }
 
                 DropArea {

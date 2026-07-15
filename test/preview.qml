@@ -18,7 +18,7 @@ Window {
     property var categories: [
         { id: "actions", label: "Ações", icon: "mouse-pointer", components: ["Button", "ButtonGroup", "ToggleButton", "Switch", "Dropdown", "ContextMenu"] },
         { id: "inputs", label: "Inputs", icon: "edit-3", components: ["TextField", "Checkbox", "RadioButton", "RadioGroup", "Select", "AdvancedSelect", "SelectTree", "Slider", "Tag", "PinInput", "DatePicker", "RangeSelector", "ColorPicker", "CozyColorPicker"] },
-        { id: "text", label: "Texto", icon: "file-text", components: ["TextEditor", "AdvancedTextEditor", "FormField", "DynamicForm"] },
+        { id: "text", label: "Texto", icon: "file-text", components: ["TextEditor", "AdvancedTextEditor", "FormField", "DynamicForm", "I18n"] },
         { id: "display", label: "Display", icon: "eye", components: ["HeroCarousel", "Badge", "Avatar", "ProgressBar", "Spinner", "Skeleton", "Tooltip", "Toast", "StripedFill", "SteppedProgress", "Stepper"] },
         { id: "layout", label: "Layout", icon: "layout", components: ["HStack", "VStack", "Box", "Card", "Tile", "Accordion", "Modal", "AlertDialog", "Popover", "Drawer", "EmptyState", "Separator", "Shell", "CozyGrid"] },
         { id: "data", label: "Dados", icon: "database", components: ["Table", "TreeTable", "Paginator", "InteractiveListCell", "CozyList"] },

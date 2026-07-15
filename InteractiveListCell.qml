@@ -12,11 +12,9 @@ Item {
     // ==========================================
     property Component rowContent
     property bool isSelected: false
-
     // Explicitly passed model context from CozyList delegate
     property var cellModelData: null
     property int cellIndex: -1
-
     // Styling overrides
     property color backgroundColor: "transparent"
     property color hoverColor: Qt.rgba(Theme.colors.surface0.r, Theme.colors.surface0.g, Theme.colors.surface0.b, 0.4)
@@ -35,12 +33,10 @@ Item {
     implicitHeight: Math.max(48, contentLoader.implicitHeight + (paddingVertical * 2))
     width: parent ? parent.width : 300
     // Cozy scale micro-animation on press + hover
-    scale: mouseArea.pressed ? 0.985 : (mouseArea.containsMouse ? 1.005 : 1.0)
+    scale: mouseArea.pressed ? 0.985 : (mouseArea.containsMouse ? 1.005 : 1)
     activeFocusOnTab: true
-
     Keys.onReturnPressed: root.clicked()
     Keys.onSpacePressed: root.clicked()
-
     Accessible.role: Accessible.Button
     Accessible.name: "Interactive list cell"
 
@@ -105,17 +101,22 @@ Item {
 
         id: contentLoader
 
+        // Expose modelData, model, and index to the loaded component
+        property var modelData: root.cellModelData
+        property var model: root.cellModelData
+        property int index: root.cellIndex
+
         anchors.fill: parent
         anchors.leftMargin: root.paddingHorizontal
         anchors.rightMargin: root.paddingHorizontal
         anchors.topMargin: root.paddingVertical
         anchors.bottomMargin: root.paddingVertical
         sourceComponent: root.rowContent
+    }
 
-        // Expose modelData, model, and index to the loaded component
-        property var modelData: root.cellModelData
-        property var model: root.cellModelData
-        property int index: root.cellIndex
+    FocusRing {
+        target: root
+        active: root.activeFocus
     }
 
     Behavior on scale {
@@ -124,11 +125,7 @@ Item {
             easing.type: Easing.OutBack
             easing.overshoot: 1.2
         }
-    }
 
-    FocusRing {
-        target: root
-        active: root.activeFocus
     }
 
 }

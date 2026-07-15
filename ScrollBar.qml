@@ -99,7 +99,8 @@ Item {
     // Connect to flickable mouse area to detect activity
     MouseArea {
         id: flickMouseArea
-        anchors.fill: flickable ? flickable : null
+        parent: flickable ? flickable : root
+        anchors.fill: parent
         propagateComposedEvents: true
         hoverEnabled: true
         acceptedButtons: Qt.NoButton

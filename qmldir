@@ -1,6 +1,7 @@
 module MochaDS
 singleton Theme Theme.qml
 singleton MediaQuery MediaQuery.qml
+singleton MochaI18n MochaI18n.qml
 FadeIn FadeIn.qml
 FadeOut FadeOut.qml
 SlideUp SlideUp.qml

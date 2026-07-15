@@ -1,0 +1,17 @@
+{
+  "messages": {
+    "greeting": "Hello, {{name}}!",
+    "description": "This is a demonstration of the runtime i18n system.",
+    "buttons": {
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "notifications": {
+      "count": {
+        "zero": "No notifications",
+        "one": "1 notification",
+        "other": "{{count}} notifications"
+      }
+    }
+  }
+}
