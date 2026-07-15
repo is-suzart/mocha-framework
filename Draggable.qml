@@ -14,7 +14,7 @@ Item {
     property real radius: -1
 
     property bool moves: false
-    property int axis: Qt.XAxis | Qt.YAxis
+    property int axis: Drag.XAxis | Drag.YAxis
 
     signal dragStarted(var data)
     signal dragEnded(var data)
@@ -28,41 +28,41 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
-    Drag.keys: root.key ? [root.key] : []
-    Drag.hotSpot.x: root.width / 2
-    Drag.hotSpot.y: root.height / 2
-    Drag.source: root
-    Drag.active: dragHandler.active
-
-    scale: dragHandler.active ? root.dragScale : (hoverHandler.hovered && root.enabled ? 1.02 : 1.0)
-    opacity: dragHandler.active ? root.dragOpacity : 1.0
-    z: dragHandler.active ? 100 : 0
-
-    Behavior on scale {
-        NumberAnimation { duration: 120; easing.type: Easing.OutBack }
-    }
-    Behavior on opacity {
-        NumberAnimation { duration: 120 }
-    }
-
     Item {
         id: container
         anchors.fill: parent
-    }
 
-    Rectangle {
-        id: shadowRect
-        anchors.fill: parent
-        anchors.margins: -root.elevation
-        radius: root.radius >= 0 ? root.radius + root.elevation : Theme.geometry.radiusMd + root.elevation
-        color: "transparent"
-        visible: dragHandler.active
-        z: -1
+        Drag.keys: root.key ? [root.key] : []
+        Drag.hotSpot.x: root.width / 2
+        Drag.hotSpot.y: root.height / 2
+        Drag.source: root
+        Drag.active: dragHandler.active
+
+        scale: dragHandler.active ? root.dragScale : (hoverHandler.hovered && root.enabled ? 1.02 : 1.0)
+        opacity: dragHandler.active ? root.dragOpacity : 1.0
+        z: dragHandler.active ? 100 : 0
+
+        Behavior on scale {
+            NumberAnimation { duration: 120; easing.type: Easing.OutBack }
+        }
+        Behavior on opacity {
+            NumberAnimation { duration: 120 }
+        }
 
         Rectangle {
+            id: shadowRect
             anchors.fill: parent
-            radius: parent.radius
-            color: Qt.rgba(0, 0, 0, 0.2)
+            anchors.margins: -root.elevation
+            radius: root.radius >= 0 ? root.radius + root.elevation : Theme.geometry.radiusMd + root.elevation
+            color: "transparent"
+            visible: dragHandler.active
+            z: -1
+
+            Rectangle {
+                anchors.fill: parent
+                radius: parent.radius
+                color: Qt.rgba(0, 0, 0, 0.2)
+            }
         }
     }
 
@@ -81,24 +81,55 @@ Item {
 
         property real __startX: 0
         property real __startY: 0
+        property var __oldParent: null
+        property real __oldX: 0
+        property real __oldY: 0
 
         onActiveChanged: {
             if (active) {
-                __startX = root.x
-                __startY = root.y
+                __oldParent = container.parent
+                __oldX = container.x
+                __oldY = container.y
+
+                var p = root.parent
+                while (p && p.parent) {
+                    p = p.parent
+                }
+                var globalPos = container.mapToItem(p, 0, 0)
+                __startX = globalPos.x
+                __startY = globalPos.y
+
+                container.anchors.fill = undefined
+                container.parent = p
+                container.x = globalPos.x
+                container.y = globalPos.y
+
                 root.dragStarted(root.dragData)
             } else {
-                Drag.drop()
+                var dropResult = container.Drag.drop()
+
+                if (root.moves) {
+                    var oldParent = __oldParent
+                    var globalPos = container.mapToItem(oldParent, 0, 0)
+                    container.parent = root
+                    container.anchors.fill = root
+                    root.x = globalPos.x
+                    root.y = globalPos.y
+                } else {
+                    container.parent = root
+                    container.anchors.fill = root
+                }
+
                 root.dragEnded(root.dragData)
             }
         }
 
         onTranslationChanged: {
-            if (root.moves && active) {
-                if (root.axis & Qt.XAxis)
-                    root.x = __startX + translation.x
-                if (root.axis & Qt.YAxis)
-                    root.y = __startY + translation.y
+            if (active) {
+                if (root.axis & Drag.XAxis)
+                    container.x = __startX + translation.x
+                if (root.axis & Drag.YAxis)
+                    container.y = __startY + translation.y
             }
         }
     }
