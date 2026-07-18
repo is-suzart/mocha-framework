@@ -1,0 +1,23 @@
+{
+  "name": "@mocha/native",
+  "version": "0.1.0",
+  "description": "Mocha Native - napi-rs + Qt real bindings. The bear that tames the Qt.",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "napi": {
+    "binaryName": "mocha-native",
+    "triples": {}
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "universal": "napi universal",
+    "version": "napi version"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.0.0"
+  }
+}
