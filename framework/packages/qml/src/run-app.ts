@@ -23,7 +23,6 @@ export async function runApp<T extends QObject>(
     const { createNativeApp } = await import("@mocha/native");
     nativeApp = await createNativeApp();
   } catch {
-    // Fallback mock for environments without native bindings
     nativeApp = createMockNativeApp();
   }
 
@@ -39,7 +38,6 @@ export async function runApp<T extends QObject>(
       componentName: service.componentName,
     });
 
-    // Set up effect() sync for each QProperty
     const props = scanProperties(service.instance);
     for (const { name, qp } of props) {
       effect(() => {
@@ -48,26 +46,12 @@ export async function runApp<T extends QObject>(
       });
     }
 
-    // Register proxy as QML context property
     nativeApp.setContextProperty(service.componentName, proxyId);
   }
 
-  // ── Process pending calls loop ──
-  const pollInterval = setInterval(() => {
-    for (const entry of proxyEntries) {
-      const method = nativeApp.proxyDrainPendingCall(entry.proxyId);
-      if (method) {
-        const fn = (entry.instance as any)[method];
-        if (typeof fn === "function") {
-          fn.call(entry.instance);
-        }
-      }
-    }
-  }, 16);
-
   // ── Create main controller and register as context property ──
   const controller = new componentClass();
-  const CONTEXT_NAME = "controller"; // const name used in QML templates
+  const CONTEXT_NAME = "controller";
   const mainProxyId = nativeApp.createProxy();
   proxyEntries.push({
     proxyId: mainProxyId,
@@ -89,8 +73,54 @@ export async function runApp<T extends QObject>(
   nativeApp.loadQML(qmlSource, options?.basePath || process.cwd());
 
   options?.onReady?.();
-  nativeApp.exec();
-  clearInterval(pollInterval);
+
+  // ── Event loop: interleave Qt events + Node.js event loop ──
+  await runEventLoop(nativeApp, proxyEntries);
+}
+
+function drainPendingCalls(nativeApp: any, entries: ProxyEntry[]): void {
+  for (const entry of entries) {
+    const method = nativeApp.proxyDrainPendingCall(entry.proxyId);
+    if (method) {
+      const fn = (entry.instance as any)[method];
+      if (typeof fn === "function") {
+        fn.call(entry.instance);
+      }
+    }
+  }
+}
+
+function runEventLoop(nativeApp: any, entries: ProxyEntry[]): Promise<void> {
+  return new Promise((resolve) => {
+    let running = true;
+
+    const tick = () => {
+      if (!running) {
+        resolve();
+        return;
+      }
+
+      try {
+        nativeApp.processEvents();
+      } catch {
+        running = false;
+        resolve();
+        return;
+      }
+
+      drainPendingCalls(nativeApp, entries);
+
+      if (running) {
+        setTimeout(tick, 8);
+      }
+    };
+
+    // Hook window close to stop the loop
+    process.once("SIGINT", () => { running = false; });
+    process.once("SIGTERM", () => { running = false; });
+
+    tick();
+  });
 }
 
 function scanRootServices(): Array<{ instance: QObject; componentName: string }> {
@@ -150,6 +180,7 @@ function createMockNativeApp() {
     proxyGetValue: () => "",
     proxyDrainPendingCall: () => null,
     setContextProperty: () => {},
+    processEvents: () => {},
     exec: () => 0,
     quit: () => {},
   };

@@ -139,6 +139,10 @@ class NativeApp {
     nativeEngineSetContext(this._engine, name, proxyId);
   }
 
+  processEvents() {
+    nativeProcessEvents();
+  }
+
   exec() {
     return nativeAppExec();
   }

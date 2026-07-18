@@ -28,6 +28,7 @@ export class NativeApp {
   proxyGetValue(proxyId: number, name: string): string;
   proxyDrainPendingCall(proxyId: number): string | null;
   setContextProperty(name: string, proxyId: number): void;
+  processEvents(): void;
   exec(): number;
   quit(): void;
 }
