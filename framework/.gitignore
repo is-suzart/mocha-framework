@@ -1,0 +1,37 @@
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test apps (criados via `mocha create`)
+meu-app/
+test-app/
+my-app/
+
+# TypeScript build output
+packages/*/dist/
+
+# Rust / napi build output
+packages/native/target/
+packages/native/*.node
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.temp
