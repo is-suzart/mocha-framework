@@ -1,0 +1,23 @@
+{
+  "name": "test-native",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mocha dev src/App.qml.ts",
+    "build": "tsc && mocha build src/App.qml.ts",
+    "type-gen": "mocha type-gen ./src",
+    "postinstall": "cd node_modules/@mocha/native && npx napi build --platform --release 2>/dev/null || true"
+  },
+  "dependencies": {
+    "@mocha/core": "file:../packages/core",
+    "@mocha/native": "file:../packages/native",
+    "@mocha/qml": "file:../packages/qml"
+  },
+  "devDependencies": {
+    "@mocha/cli": "file:../packages/cli",
+    "@mocha/kit": "file:../packages/kit",
+    "typescript": "^5.5.0",
+    "tsx": "^4.15.0"
+  }
+}

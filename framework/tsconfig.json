@@ -1,0 +1,11 @@
+{
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/core" },
+    { "path": "packages/qml" },
+    { "path": "packages/kit" },
+    { "path": "packages/devtools" },
+    { "path": "packages/cli" }
+  ],
+  "files": []
+}
