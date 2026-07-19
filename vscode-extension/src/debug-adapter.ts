@@ -74,10 +74,13 @@ export class MochaDebugSession extends DebugSession {
 
     this._process = spawn("npx", ["tsx", program, ...programArgs], {
       cwd,
-      env,
-      detached: true,
-      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...env, PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin" },
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
     });
+
+    let processExited = false;
+    let exitCode: number | null = null;
 
     this._process.stdout?.on("data", (data: Buffer) => {
       this.sendEvent({
@@ -94,24 +97,48 @@ export class MochaDebugSession extends DebugSession {
     });
 
     this._process.on("exit", (code) => {
-      this.sendEvent(new TerminatedEvent());
+      processExited = true;
+      exitCode = code;
+      if (exitCode !== 0) {
+        this.sendEvent(new TerminatedEvent());
+      } else {
+        this.sendEvent(new TerminatedEvent());
+      }
     });
 
     this._process.on("error", (err) => {
+      processExited = true;
       this.sendEvent({
         event: "output",
-        body: { category: "stderr", output: `Process error: ${err.message}\n` },
+        body: { category: "stderr", output: `Failed to start process: ${err.message}\nMake sure 'npx' and 'tsx' are available in your PATH.\n` },
       } as any);
+      this.sendErrorResponse(response, 1002, `Failed to start: ${err.message}`);
     });
 
-    await this._waitForServer();
+    // Wait up to 15s for the debug server to come up, but abort if process exits
+    const serverUp = await this._waitForServer(30, 500, () => processExited);
+
+    if (processExited) {
+      this.sendErrorResponse(response, 1003, `Process exited before debug server started (code=${exitCode}). Check the Debug Console for details.`);
+      return;
+    }
+
+    if (!serverUp) {
+      // Server didn't come up but process is still alive — launch anyway (app might not use devtools)
+      this.sendEvent({
+        event: "output",
+        body: { category: "console", output: "[Mocha] Debug server not detected — running without inspector.\n" },
+      } as any);
+    }
 
     this.sendEvent(new ThreadEvent("started", THREAD_V8));
     this.sendEvent(new ThreadEvent("started", THREAD_QT));
 
     this.sendResponse(response);
 
-    this._startPausePolling();
+    if (serverUp) {
+      this._startPausePolling();
+    }
   }
 
   protected configurationDoneRequest(
@@ -370,27 +397,24 @@ export class MochaDebugSession extends DebugSession {
 
   private async _cleanup(): Promise<void> {
     if (!this._process) return;
-
-    // 1. Shutdown gracioso via HTTP (fecha debug server → libera porta)
-    try {
-      await this._httpGet("/debugger/shutdown");
-    } catch {}
-
-    // 2. Aguarda processo sair naturalmente
-    await sleep(500);
-
-    // 3. Se ainda vivo, SIGTERM no grupo de processos (-pid)
-    if (!this._process.killed) {
-      try { process.kill(-this._process.pid!, "SIGTERM"); } catch {}
-      await sleep(2000);
-    }
-
-    // 4. Se ainda vivo, SIGKILL
-    if (!this._process.killed) {
-      try { process.kill(-this._process.pid!, "SIGKILL"); } catch {}
-    }
-
+    const proc = this._process;
     this._process = null;
+    this._pausePollingActive = false;
+
+    // 1. Graceful shutdown via HTTP
+    try { await this._httpGet("/debugger/shutdown"); } catch {}
+    await sleep(300);
+
+    // 2. SIGTERM directly to the child pid
+    if (!proc.killed && proc.pid) {
+      try { process.kill(proc.pid, "SIGTERM"); } catch {}
+      await sleep(1500);
+    }
+
+    // 3. SIGKILL if still alive
+    if (!proc.killed && proc.pid) {
+      try { process.kill(proc.pid, "SIGKILL"); } catch {}
+    }
   }
 
   private _httpGet(path: string): Promise<string> {
@@ -427,15 +451,17 @@ export class MochaDebugSession extends DebugSession {
     return vars;
   }
 
-  private async _waitForServer(retries = 20, delay = 500): Promise<void> {
+  private async _waitForServer(retries = 30, delay = 500, shouldAbort?: () => boolean): Promise<boolean> {
     for (let i = 0; i < retries; i++) {
+      if (shouldAbort?.()) return false;
       try {
         await this._fetchState();
-        return;
+        return true;
       } catch {
         await new Promise((r) => setTimeout(r, delay));
       }
     }
+    return false;
   }
 
   private _fetchState(): Promise<any> {
