@@ -3,54 +3,162 @@ import QtQuick
 Item {
     id: root
 
-    // ==========================================
-    // Public API (Properties)
-    // ==========================================
+    // ── Identity ───────────────────────────────────
+    readonly property bool isFormField: true
+    property string name: ""
+
+    // ── Public API ─────────────────────────────────
     property string label: ""
     property string description: ""
     property string errorMessage: ""
     property bool required: false
-    
-    // Status: "normal" | "success" | "error"
     property string status: "normal"
 
-    // Allows embedding the input field directly inside this wrapper
-    default property alias content: contentContainer.data
+    // ── Pipes ──────────────────────────────────────
+    property string pipe: ""
 
-    // ==========================================
-    // Layout Dimensions
-    // ==========================================
+    // ── Validation Rules ───────────────────────────
+    property int minLength: -1
+    property int maxLength: -1
+    property real min: -Infinity
+    property real max: Infinity
+    property string pattern: ""
+    property var customValidator: null
+
+    // ── Value (readonly, reactive) ─────────────────
+    readonly property var rawValue: {
+        var child = _getInputChild()
+        if (!child) return ""
+        if (child.hasOwnProperty("text")) return child.text
+        if (child.hasOwnProperty("checked")) return child.checked
+        if (child.hasOwnProperty("selectedValue")) return child.selectedValue
+        if (child.hasOwnProperty("value")) return child.value
+        return ""
+    }
+
+    readonly property var value: Pipes.applyAll(rawValue, pipe)
+
+    // ── Layout ─────────────────────────────────────
+    default property alias content: contentContainer.data
     implicitWidth: 280
     implicitHeight: layoutColumn.implicitHeight
     width: implicitWidth
     height: implicitHeight
 
-    // Stacking order: raise z-index when child input (like Select) is expanded
+    // ── Internal ───────────────────────────────────
+    property var _form: null
+
     z: {
         if (contentContainer.children.length > 0) {
-            var child = contentContainer.children[0];
-            if (child) {
-                if (child.item !== undefined && child.item !== null) {
-                    if (child.item.expanded !== undefined && child.item.expanded) {
-                        return 100;
-                    }
-                } else if (child.expanded !== undefined && child.expanded) {
-                    return 100;
-                }
+            var child = contentContainer.children[0]
+            if (child && child.hasOwnProperty("item") && child.item) {
+                child = child.item
             }
+            if (child && child.expanded !== undefined && child.expanded) return 100
         }
-        return 0;
+        return 0
     }
 
-    // ==========================================
-    // Visual Tree
-    // ==========================================
+    // ── Value change → notify Form ─────────────────
+    onValueChanged: {
+        if (_form) _form._fieldChanged(name, value, errorMessage)
+    }
+
+    onErrorMessageChanged: {
+        if (_form) _form._fieldChanged(name, value, errorMessage)
+    }
+
+    // ── Self-registration ──────────────────────────
+    Component.onCompleted: _findForm()
+    Component.onDestruction: {
+        if (_form) _form._unregister(root)
+    }
+
+    function _findForm() {
+        var p = parent
+        while (p) {
+            if (p.hasOwnProperty("_register") && typeof p._register === "function") {
+                p._register(root)
+                return
+            }
+            p = p.parent
+        }
+    }
+
+    // ── Input Child Helper ─────────────────────────
+    function _getInputChild() {
+        if (contentContainer.children.length === 0) return null
+        var child = contentContainer.children[0]
+        var seen = [child]
+        while (child && typeof child === "object" && child.hasOwnProperty("item")) {
+            child = child.item || child
+            if (seen.indexOf(child) >= 0) break
+            seen.push(child)
+        }
+        return child
+    }
+
+    // ── Value set/reset ────────────────────────────
+    function _setValue(v) {
+        var child = _getInputChild()
+        if (!child) return
+        if (child.hasOwnProperty("text")) child.text = v !== undefined ? String(v) : ""
+        else if (child.hasOwnProperty("checked")) child.checked = Boolean(v)
+        else if (child.hasOwnProperty("selectedValue")) child.selectedValue = v
+        else if (child.hasOwnProperty("value")) child.value = v
+    }
+
+    function _reset() {
+        var child = _getInputChild()
+        if (!child) return
+        if (child.hasOwnProperty("text")) child.text = ""
+        else if (child.hasOwnProperty("checked")) child.checked = false
+        else if (child.hasOwnProperty("selectedValue")) child.selectedValue = null
+        else if (child.hasOwnProperty("value")) child.value = undefined
+        errorMessage = ""
+        status = "normal"
+    }
+
+    // ── Validation ─────────────────────────────────
+    function _validate() {
+        var val = value
+        var err = ""
+
+        if (required && (val === undefined || val === null || val === "" || val === false)) {
+            err = "Campo obrigatório"
+        }
+        if (!err && pattern && typeof val === "string" && val !== "") {
+            var re = new RegExp(pattern)
+            if (!re.test(val)) err = "Formato inválido"
+        }
+        if (!err && minLength > 0 && typeof val === "string" && val.length < minLength) {
+            err = "Mínimo de " + minLength + " caracteres"
+        }
+        if (!err && maxLength > 0 && typeof val === "string" && val.length > maxLength) {
+            err = "Máximo de " + maxLength + " caracteres"
+        }
+        if (!err && min !== -Infinity && Number(val) < min) {
+            err = "Valor mínimo: " + min
+        }
+        if (!err && max !== Infinity && Number(val) > max) {
+            err = "Valor máximo: " + max
+        }
+        if (!err && customValidator && typeof customValidator === "function") {
+            var customErr = customValidator(val)
+            if (customErr) err = typeof customErr === "string" ? customErr : "Valor inválido"
+        }
+
+        errorMessage = err
+        status = err ? "error" : "normal"
+        return err
+    }
+
+    // ── Visual Tree ────────────────────────────────
     Column {
         id: layoutColumn
         width: parent.width
         spacing: Theme.spacing.xs
 
-        // Label and Required mark
         Row {
             spacing: Theme.spacing.xs
             visible: root.label !== ""
@@ -74,7 +182,6 @@ Item {
             }
         }
 
-        // Optional helper description
         Text {
             text: root.description
             font.family: Theme.typography.family
@@ -86,30 +193,24 @@ Item {
             antialiasing: true
         }
 
-        // Input control slot container
         Item {
             id: contentContainer
             width: parent.width
-            // Calculate height based on child input
             height: children.length > 0 ? children[0].height : 0
 
-        // Forward the width to the child to fill the form field
             onChildrenChanged: {
                 if (children.length > 0) {
-                    var child = children[0];
-                    child.width = Qt.binding(function() { return contentContainer.width; });
+                    var child = children[0]
+                    child.width = Qt.binding(function() { return contentContainer.width })
                     if (child && child.hasOwnProperty("item") && child.hasOwnProperty("loaded")) {
-                        try {
-                            child.loaded.disconnect(root.syncChildStatus);
-                        } catch (e) {}
-                        child.loaded.connect(root.syncChildStatus);
+                        try { child.loaded.disconnect(root.syncChildStatus) } catch (e) {}
+                        child.loaded.connect(root.syncChildStatus)
                     }
-                    syncChildStatus();
+                    syncChildStatus()
                 }
             }
         }
 
-        // Error message row
         Row {
             spacing: Theme.spacing.xs
             visible: root.status === "error" && root.errorMessage !== ""
@@ -135,30 +236,15 @@ Item {
         }
     }
 
-    // ==========================================
-    // Status syncing logic
-    // ==========================================
-    onStatusChanged: {
-        syncChildStatus();
-    }
-
-    Component.onCompleted: {
-        syncChildStatus();
-    }
+    // ── Status syncing ─────────────────────────────
+    onStatusChanged: syncChildStatus()
 
     function syncChildStatus() {
         if (contentContainer.children.length > 0) {
-            var child = contentContainer.children[0];
-            // If the child is a Loader, target its loaded item
-            if (child && child.hasOwnProperty("item")) {
-                child = child.item;
-            }
+            var child = contentContainer.children[0]
+            if (child && child.hasOwnProperty("item")) child = child.item
             if (child && child.hasOwnProperty("status")) {
-                try {
-                    child.status = root.status;
-                } catch (e) {
-                    // Ignore assignment errors
-                }
+                try { child.status = root.status } catch (e) {}
             }
         }
     }
