@@ -1,4 +1,4 @@
-import QtQuick
+import QtQuick 2.15
 import QtTest
 import ".." // Import local MochaDS files
 

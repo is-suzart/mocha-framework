@@ -1,6 +1,6 @@
-import QtQuick
-import QtQuick.Window
-import ".." as DS
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import MochaDS as DS
 
 Window {
     visible: true

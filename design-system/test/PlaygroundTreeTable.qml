@@ -1,6 +1,6 @@
-import QtQuick
-import QtQuick.Layouts
-import ".." as DS
+import QtQuick 2.15
+import QtQuick.Layouts 1.15
+import MochaDS as DS
 
 Playground {
     id: pg

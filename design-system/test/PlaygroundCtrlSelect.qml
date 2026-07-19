@@ -1,5 +1,5 @@
-import QtQuick
-import ".." as DS
+import QtQuick 2.15
+import MochaDS as DS
 
 Column {
     id: ctrlBase
