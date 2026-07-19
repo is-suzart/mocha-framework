@@ -28,4 +28,12 @@ QtObject {
 
     // Título da rota (opcional — útil para breadcrumbs, document title etc.)
     property string title: ""
+
+    // Router Guards
+    // canActivate: function(params, router) → bool
+    property var canActivate: null
+    // canDeactivate: function(params, router) → bool
+    property var canDeactivate: null
+    // Rota de redirecionamento caso canActivate retorne false
+    property string guardRedirect: ""
 }
