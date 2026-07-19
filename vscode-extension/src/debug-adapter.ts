@@ -69,13 +69,31 @@ export class MochaDebugSession extends DebugSession {
       return;
     }
 
-    const env = { ...process.env, MOCHA_DEVTOOLS: "1", MOCHA_DEVTOOLS_PORT: String(this._port) };
     const programArgs = args.args || [];
+
+    const inheritedEnv: Record<string, string> = {};
+    for (const key of [
+      "PATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL",
+      "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "XDG_SESSION_TYPE",
+      "QT_QPA_PLATFORM", "QT_QPA_PLATFORMTHEME",
+      "LD_LIBRARY_PATH", "LD_PRELOAD",
+      "DBUS_SESSION_BUS_ADDRESS", "XDG_DATA_DIRS",
+      "npm_config_cache", "npm_config_prefix",
+    ]) {
+      if (process.env[key] !== undefined) {
+        inheritedEnv[key] = process.env[key] as string;
+      }
+    }
+    const spawnEnv = {
+      ...inheritedEnv,
+      MOCHA_DEVTOOLS: "1",
+      MOCHA_DEVTOOLS_PORT: String(this._port),
+    };
 
     this._process = spawn("npx", ["tsx", program, ...programArgs], {
       cwd,
-      env: { ...env, PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin" },
-      shell: false,
+      env: spawnEnv,
+      shell: true,   // use the user's shell so PATH (nvm/volta/etc.) resolves correctly
       stdio: ["ignore", "pipe", "pipe"],
     });
 
