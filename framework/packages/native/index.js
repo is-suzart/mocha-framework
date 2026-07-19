@@ -58,6 +58,7 @@ export const {
   nativeProxyHasPendingCalls,
   nativeProxyDrainPendingCalls,
   nativeEngineSetContext,
+  nativeFindChildByName,
 } = native;
 
 // High-level API
@@ -142,6 +143,25 @@ class NativeApp {
 
   setContextProperty(name, proxyId) {
     nativeEngineSetContext(this._engine, name, proxyId);
+  }
+
+  findChild(name) {
+    if (!this._rootObject) throw new Error("No root object. Call loadQML first.");
+    return nativeFindChildByName(this._rootObject, name);
+  }
+
+  getObjectProperty(objId, name) {
+    return nativeObjectGetProperty(objId, name);
+  }
+
+  setObjectProperty(objId, name, value) {
+    if (typeof value === "number" && Number.isInteger(value)) {
+      nativeObjectSetInt(objId, name, value);
+    } else if (typeof value === "boolean") {
+      nativeObjectSetBool(objId, name, value);
+    } else {
+      nativeObjectSetProperty(objId, name, String(value));
+    }
   }
 
   processEvents() {

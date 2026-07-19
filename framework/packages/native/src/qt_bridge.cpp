@@ -18,7 +18,7 @@
 
 class MochaDynamicObject : public QObject {
     Q_OBJECT
-    Q_PROPERTY(int __seq READ seq NOTIFY seqChanged)
+    Q_PROPERTY(int bridgeSeq READ seq NOTIFY seqChanged)
 
     QMap<QString, QVariant> _values;
     QStringList _pendingCalls;
@@ -54,7 +54,7 @@ public:
         return _values.value(name);
     }
 
-    Q_INVOKABLE void __call(QString method) {
+    Q_INVOKABLE void bridgeCall(QString method) {
         _pendingCalls.append(method);
         _seq++; emit seqChanged();
     }
@@ -262,6 +262,16 @@ void qml_engine_set_context_property(void* engine, const char* name, void* obj) 
     auto* e = static_cast<QQmlApplicationEngine*>(engine);
     auto* qobj = static_cast<QObject*>(obj);
     e->rootContext()->setContextProperty(QString::fromUtf8(name), qobj);
+}
+
+void* qml_find_child_by_name(void* parent, const char* name) {
+    auto* obj = static_cast<QObject*>(parent);
+    auto* child = obj->findChild<QObject*>(
+        QString::fromUtf8(name), Qt::FindChildrenRecursively);
+    if (child) {
+        QQmlEngine::setObjectOwnership(child, QQmlEngine::CppOwnership);
+    }
+    return child;
 }
 
 } // extern "C"

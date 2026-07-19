@@ -32,6 +32,7 @@ extern "C" {
     fn mocha_object_drain_pending_calls(obj: *mut c_void, buf: *mut c_char, max: i32) -> i32;
     fn mocha_set_call_handler(cb: Option<unsafe extern "C" fn(proxy_id: i32, method: *const c_char)>);
     fn qml_engine_set_context_property(engine: *mut c_void, name: *const c_char, obj: *mut c_void);
+    fn qml_find_child_by_name(parent: *mut c_void, name: *const c_char) -> *mut c_void;
 }
 
 struct NativeState {
@@ -316,4 +317,19 @@ pub fn native_engine_set_context(engine_id: u32, name: String, proxy_id: u32) ->
         qml_engine_set_context_property(engine, c_name.as_ptr(), proxy);
     }
     Ok(())
+}
+
+#[napi]
+pub fn native_find_child_by_name(parent_id: u32, name: String) -> Result<u32> {
+    let c_name = CString::new(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let parent = state.get_ptr(parent_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid parent handle"))?;
+    unsafe {
+        let child = qml_find_child_by_name(parent, c_name.as_ptr());
+        if child.is_null() {
+            return Err(Error::new(Status::GenericFailure, format!("Child not found: {}", c_name.to_str().unwrap_or("?"))));
+        }
+        Ok(state.alloc_id(child))
+    }
 }

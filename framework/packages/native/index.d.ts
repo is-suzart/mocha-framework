@@ -18,6 +18,7 @@ export function nativeProxyGetValue(proxyId: number, name: string): string;
 export function nativeProxyHasPendingCalls(proxyId: number): boolean;
 export function nativeProxyDrainPendingCalls(proxyId: number): string[];
 export function nativeEngineSetContext(engineId: number, name: string, proxyId: number): void;
+export function nativeFindChildByName(parentId: number, name: string): number;
 
 export class NativeApp {
   init(): void;
@@ -30,6 +31,9 @@ export class NativeApp {
   proxyHasPendingCalls(proxyId: number): boolean;
   proxyDrainPendingCalls(proxyId: number): string[];
   setContextProperty(name: string, proxyId: number): void;
+  findChild(name: string): number;
+  getObjectProperty(objId: number, name: string): string;
+  setObjectProperty(objId: number, name: string, value: string | number | boolean): void;
   processEvents(): void;
   exec(): number;
   quit(): void;

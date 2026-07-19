@@ -41,44 +41,48 @@ template <> constexpr inline auto MochaDynamicObject::qt_create_metaobjectdata<q
         "seqChanged",
         "",
         "setValue",
-        "const char*",
         "name",
         "value",
         "setInt",
         "setBool",
         "getValue",
         "QVariant",
-        "__call",
+        "get",
+        "bridgeCall",
         "method",
-        "__seq"
+        "bridgeSeq"
     };
 
     QtMocHelpers::UintData qt_methods {
         // Signal 'seqChanged'
         QtMocHelpers::SignalData<void()>(1, 2, QMC::AccessPublic, QMetaType::Void),
         // Method 'setValue'
-        QtMocHelpers::MethodData<void(const char *, const char *)>(3, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 4, 5 }, { 0x80000000 | 4, 6 },
+        QtMocHelpers::MethodData<void(QString, QString)>(3, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 4 }, { QMetaType::QString, 5 },
         }}),
         // Method 'setInt'
-        QtMocHelpers::MethodData<void(const char *, int)>(7, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 4, 5 }, { QMetaType::Int, 6 },
+        QtMocHelpers::MethodData<void(QString, int)>(6, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 4 }, { QMetaType::Int, 5 },
         }}),
         // Method 'setBool'
-        QtMocHelpers::MethodData<void(const char *, bool)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 4, 5 }, { QMetaType::Bool, 6 },
+        QtMocHelpers::MethodData<void(QString, bool)>(7, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 4 }, { QMetaType::Bool, 5 },
         }}),
         // Method 'getValue'
-        QtMocHelpers::MethodData<QVariant(const char *) const>(9, 2, QMC::AccessPublic, 0x80000000 | 10, {{
-            { 0x80000000 | 4, 5 },
+        QtMocHelpers::MethodData<QVariant(QString) const>(8, 2, QMC::AccessPublic, 0x80000000 | 9, {{
+            { QMetaType::QString, 4 },
         }}),
-        // Method '__call'
-        QtMocHelpers::MethodData<void(const char *)>(11, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 4, 12 },
+        // Method 'get'
+        QtMocHelpers::MethodData<QVariant(QString) const>(10, 2, QMC::AccessPublic, 0x80000000 | 9, {{
+            { QMetaType::QString, 4 },
+        }}),
+        // Method 'bridgeCall'
+        QtMocHelpers::MethodData<void(QString)>(11, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 12 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
-        // property '__seq'
+        // property 'bridgeSeq'
         QtMocHelpers::PropertyData<int>(13, QMetaType::Int, QMC::DefaultPropertyFlags, 0),
     };
     QtMocHelpers::UintData qt_enums {
@@ -102,12 +106,14 @@ void MochaDynamicObject::qt_static_metacall(QObject *_o, QMetaObject::Call _c, i
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
         case 0: _t->seqChanged(); break;
-        case 1: _t->setValue((*reinterpret_cast<std::add_pointer_t<const char*>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<const char*>>(_a[2]))); break;
-        case 2: _t->setInt((*reinterpret_cast<std::add_pointer_t<const char*>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
-        case 3: _t->setBool((*reinterpret_cast<std::add_pointer_t<const char*>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
-        case 4: { QVariant _r = _t->getValue((*reinterpret_cast<std::add_pointer_t<const char*>>(_a[1])));
+        case 1: _t->setValue((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
+        case 2: _t->setInt((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 3: _t->setBool((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
+        case 4: { QVariant _r = _t->getValue((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])));
             if (_a[0]) *reinterpret_cast<QVariant*>(_a[0]) = std::move(_r); }  break;
-        case 5: _t->__call((*reinterpret_cast<std::add_pointer_t<const char*>>(_a[1]))); break;
+        case 5: { QVariant _r = _t->get((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])));
+            if (_a[0]) *reinterpret_cast<QVariant*>(_a[0]) = std::move(_r); }  break;
+        case 6: _t->bridgeCall((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         default: ;
         }
     }
@@ -143,14 +149,14 @@ int MochaDynamicObject::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 6)
+        if (_id < 7)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 6;
+        _id -= 7;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 6)
+        if (_id < 7)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 6;
+        _id -= 7;
     }
     if (_c == QMetaObject::ReadProperty || _c == QMetaObject::WriteProperty
             || _c == QMetaObject::ResetProperty || _c == QMetaObject::BindableProperty
