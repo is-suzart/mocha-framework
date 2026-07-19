@@ -1,5 +1,6 @@
 import { QObject, QProperty, effect, globalContainer } from "@mocha/core";
 import { getQMLComponentMetadata, getAllQMLComponents, generateQMLSource, type ProxyEntry } from "./qml-component.js";
+import { setNativeAppRef, createLazyViewChild, type ViewChildRef } from "./view-child.js";
 
 export interface RunAppOptions {
   basePath?: string;
@@ -22,9 +23,10 @@ export async function runApp<T extends QObject>(
   try {
     const { createNativeApp } = await import("@mocha/native");
     nativeApp = await createNativeApp();
-  } catch {
-    nativeApp = createMockNativeApp();
-  }
+    } catch {
+      nativeApp = createMockNativeApp();
+    }
+    setNativeAppRef(nativeApp);
 
   const proxyEntries: ProxyEntry[] = [];
 
@@ -50,18 +52,21 @@ export async function runApp<T extends QObject>(
   const mainProxyId = nativeApp.createProxy();
   proxyEntries.push({ proxyId: mainProxyId, instance: controller, componentName: CONTEXT_NAME });
 
-  const mainProps = scanProperties(controller);
-  for (const { name, qp } of mainProps) {
-    effect(() => {
-      const val = qp.value;
-      nativeApp.proxySetValue(mainProxyId, name, val);
-    });
-  }
+    const mainProps = scanProperties(controller);
+    for (const { name, qp } of mainProps) {
+      effect(() => {
+        const val = qp.value;
+        nativeApp.proxySetValue(mainProxyId, name, val);
+      });
+    }
   nativeApp.setContextProperty(CONTEXT_NAME, mainProxyId);
 
   // ── Generate and load QML ──
   const qmlSource = generateQMLSource(controller, meta, proxyEntries);
   nativeApp.loadQML(qmlSource, options?.basePath || process.cwd());
+
+  resolveViewChildren(controller);
+
   options?.onReady?.();
 
   // ── Event loop: interleave Qt events + Node.js event loop ──
@@ -72,9 +77,28 @@ function drainPendingCalls(nativeApp: any, entries: ProxyEntry[]): void {
   for (const entry of entries) {
     const calls: string[] = nativeApp.proxyDrainPendingCalls(entry.proxyId);
     if (calls && calls.length > 0) {
-      for (const method of calls) {
+      for (const call of calls) {
+        const sep = call.indexOf("|");
+        const method = sep >= 0 ? call.slice(0, sep) : call;
+        const args = sep >= 0 ? call.slice(sep + 1) : "";
+
+        if (method.startsWith("_bind_")) {
+          const propName = method.slice(6);
+          const qp = (entry.instance as any)[propName];
+          if (qp instanceof QProperty) {
+            qp.value = args ? JSON.parse(args) : "";
+          }
+          continue;
+        }
+
         const fn = (entry.instance as any)[method];
-        if (typeof fn === "function") fn.call(entry.instance);
+        if (typeof fn === "function") {
+          if (args) {
+            fn.call(entry.instance, JSON.parse(args));
+          } else {
+            fn.call(entry.instance);
+          }
+        }
       }
     }
   }
@@ -129,6 +153,29 @@ function scanProperties(instance: QObject): Array<{ name: string; qp: QProperty 
     proto = Object.getPrototypeOf(proto);
   }
   return props;
+}
+
+function resolveViewChildren(controller: QObject): void {
+  const proto = Object.getPrototypeOf(controller);
+  const keys = Object.getOwnPropertyNames(controller).concat(
+    ...getAllProtoKeys(controller)
+  );
+  for (const key of keys) {
+    const val = (controller as any)[key];
+    if (val && val.__viewChild) {
+      (controller as any)[key] = createLazyViewChild(val as ViewChildRef<any>);
+    }
+  }
+}
+
+function getAllProtoKeys(obj: any): string[] {
+  const result: string[] = [];
+  let proto = Object.getPrototypeOf(obj);
+  while (proto && proto !== Object.prototype) {
+    result.push(...Object.getOwnPropertyNames(proto));
+    proto = Object.getPrototypeOf(proto);
+  }
+  return result;
 }
 
 function createMockNativeApp() {

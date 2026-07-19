@@ -12,3 +12,6 @@ export { hotReload, hotreload, isHotReloadable, HotReloadManager } from "./hot-r
 export type { HotReloadEntry } from "./hot-reload.js";
 export { qml } from "./template-tag.js";
 export * from "./widget-types.js";
+export { viewChild, setNativeAppRef, resolveViewChild } from "./view-child.js";
+export type { ViewChildRef } from "./view-child.js";
+export { QMLNode, QMLTextField, QMLTextInput, QMLButton, QMLCheckBox, QMLSlider, QMLProgressBar } from "./widget-wrappers.js";

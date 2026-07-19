@@ -83,12 +83,28 @@ Item {
     signal navigationStarted(string path, var params)
     signal navigationFinished(string path, var params)
     signal routeNotFound(string path)
+    signal navigationBlocked(string path, string reason)
+
+    // ── Lifecycle hooks ───────────────────────────────────────
+
+    property var onRouteLeave: null  // called with oldPath before navigation
+    property var onRouteEnter: null  // called with newPath after content loaded
 
     // ── Métodos de Navegação ────────────────────────────────
+
+    function _fireRouteLeave(newPath) {
+        if (root.onRouteLeave && currentPath && currentPath !== newPath) {
+            root.onRouteLeave(currentPath)
+        }
+    }
 
     // Empurra uma nova entrada no histórico e navega
     function push(path, params) {
         var resolved = _resolve(path, params ?? {})
+        if (!_checkCanDeactivate()) return
+        if (!_checkCanActivate(resolved.path, resolved.params)) return
+
+        _fireRouteLeave(resolved.path)
         var newStack = _stack.slice(0, _stackIndex + 1)
         newStack.push(resolved)
         _stack = newStack
@@ -99,6 +115,9 @@ Item {
     // Substitui a entrada atual no histórico (sem criar nova entrada)
     function replace(path, params) {
         var resolved = _resolve(path, params ?? {})
+        if (!_checkCanActivate(resolved.path, resolved.params)) return
+
+        _fireRouteLeave(resolved.path)
         var newStack = _stack.slice()
         newStack[_stackIndex] = resolved
         _stack = newStack
@@ -108,6 +127,11 @@ Item {
     // Volta uma entrada no histórico
     function back() {
         if (canGoBack) {
+            if (!_checkCanDeactivate()) return
+            var prevEntry = _stack[_stackIndex - 1]
+            if (!_checkCanActivate(prevEntry.path, prevEntry.params)) return
+
+            _fireRouteLeave(prevEntry.path)
             _stackIndex--
             navigationStarted(currentPath, currentParams)
         }
@@ -116,6 +140,11 @@ Item {
     // Avança uma entrada no histórico
     function forward() {
         if (canGoForward) {
+            if (!_checkCanDeactivate()) return
+            var nextEntry = _stack[_stackIndex + 1]
+            if (!_checkCanActivate(nextEntry.path, nextEntry.params)) return
+
+            _fireRouteLeave(nextEntry.path)
             _stackIndex++
             navigationStarted(currentPath, currentParams)
         }
@@ -125,6 +154,11 @@ Item {
     function go(delta) {
         var newIndex = _stackIndex + delta
         if (newIndex >= 0 && newIndex < _stack.length) {
+            if (!_checkCanDeactivate()) return
+            var targetEntry = _stack[newIndex]
+            if (!_checkCanActivate(targetEntry.path, targetEntry.params)) return
+
+            _fireRouteLeave(targetEntry.path)
             _stackIndex = newIndex
             navigationStarted(currentPath, currentParams)
         }
@@ -133,9 +167,43 @@ Item {
     // Limpa todo o histórico e navega para uma rota
     function reset(path, params) {
         var resolved = _resolve(path, params ?? {})
+        if (!_checkCanDeactivate()) return
+        if (!_checkCanActivate(resolved.path, resolved.params)) return
+
+        _fireRouteLeave(resolved.path)
         _stack = [resolved]
         _stackIndex = 0
         navigationStarted(resolved.path, resolved.params)
+    }
+
+    // ── Router Guards ────────────────────────────────────
+
+    function _checkCanActivate(path, params) {
+        var route = _findRoute(path)
+        if (!route || !route.canActivate) return true
+
+        var result = route.canActivate(params, root)
+        if (!result) {
+            navigationBlocked(path, "canActivate")
+            if (route.guardRedirect && _cleanPath(route.guardRedirect) !== path) {
+                push(route.guardRedirect)
+            }
+            return false
+        }
+        return true
+    }
+
+    function _checkCanDeactivate() {
+        if (_stack.length === 0) return true
+        var route = _findRoute(currentPath)
+        if (!route || !route.canDeactivate) return true
+
+        var result = route.canDeactivate(currentParams, root)
+        if (!result) {
+            navigationBlocked(currentPath, "canDeactivate")
+            return false
+        }
+        return true
     }
 
     // Verifica se um caminho combina com a rota atual
@@ -301,6 +369,10 @@ Item {
             }
 
             root.navigationFinished(root.currentPath, root.currentParams)
+
+            if (root.onRouteEnter) {
+                root.onRouteEnter(root.currentPath)
+            }
         }
     }
 
