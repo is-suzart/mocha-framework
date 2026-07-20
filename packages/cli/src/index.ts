@@ -30,12 +30,15 @@ program.addCommand(addCommand);
 function registerDevCommand() {
   return new Command('dev')
     .argument('[entry]', 'entry file (default: src/App.qml.ts)', 'src/App.qml.ts')
-    .option('-p, --port <port>', 'dev server port', '8090')
+    .option('-p, --port <port>', 'dev server port (random if omitted)')
     .option('-w, --watch', 'watch for changes', true)
     .description('start development server with hot reload')
-    .action(async (entry: string, opts: { port: string; watch: boolean }) => {
+    .action(async (entry: string, opts: { port?: string; watch: boolean }) => {
       const { run } = await import('../../kit/dist/commands/dev.js');
-      await run([entry, '--port', opts.port, ...(opts.watch ? ['--watch'] : [])]);
+      const args = [entry];
+      if (opts.port) args.push('--port', opts.port);
+      if (opts.watch) args.push('--watch');
+      await run(args);
     });
 }
 
@@ -70,11 +73,13 @@ function registerTypeGenCommand() {
 
 function registerServeCommand() {
   return new Command('serve')
-    .option('-p, --port <port>', 'DevTools port', '9229')
+    .option('-p, --port <port>', 'DevTools port (random if omitted)')
     .description('start DevTools inspector server')
-    .action(async (opts: { port: string }) => {
+    .action(async (opts: { port?: string }) => {
       const { run } = await import('../../kit/dist/commands/serve.js');
-      await run(['--port', opts.port]);
+      const args: string[] = [];
+      if (opts.port) args.push('--port', opts.port);
+      await run(args);
     });
 }
 
@@ -87,6 +92,16 @@ function registerInfoCommand() {
     });
 }
 
+function registerDoctorCommand() {
+  return new Command('doctor')
+    .option('-f, --fix', 'attempt to auto-fix missing dependencies')
+    .description('check development environment for missing dependencies')
+    .action(async (opts: { fix: boolean }) => {
+      const { run } = await import('../../kit/dist/commands/doctor.js');
+      await run(opts.fix ? ['--fix'] : []);
+    });
+}
+
 async function registerFrameworkCommands() {
   try {
     program.addCommand(registerDevCommand());
@@ -94,6 +109,7 @@ async function registerFrameworkCommands() {
     program.addCommand(registerTypeGenCommand());
     program.addCommand(registerServeCommand());
     program.addCommand(registerInfoCommand());
+    program.addCommand(registerDoctorCommand());
   } catch {
     // @mocha/kit not installed — framework commands unavailable
   }

@@ -3,8 +3,29 @@ import { hotReload } from "@mocha/qml";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import * as net from "node:net";
 
 const logger = new Logger("dev");
+
+function randomPort(): number {
+  return Math.floor(Math.random() * 55536) + 10000;
+}
+
+function findFreePort(preferred?: number): Promise<number> {
+  return new Promise((resolve) => {
+    const tryPort = (port: number) => {
+      const server = net.createServer();
+      server.unref();
+      server.on("error", () => {
+        tryPort(randomPort());
+      });
+      server.listen(port, () => {
+        server.close(() => resolve(port));
+      });
+    };
+    tryPort(preferred ?? randomPort());
+  });
+}
 
 interface DevServerOptions {
   entry: string;
@@ -70,7 +91,10 @@ class DevServer {
       logger.info("Launching with tsx...");
 
       const { spawn } = await import("child_process");
-      const tsxBin = path.resolve(process.cwd(), "node_modules", ".bin", "tsx");
+      let tsxBin = path.resolve(process.cwd(), "node_modules", ".bin", "tsx");
+      if (process.platform === "win32") {
+        tsxBin += ".cmd";
+      }
 
       this._childProcess = spawn(
         tsxBin,
@@ -79,6 +103,7 @@ class DevServer {
           stdio: "inherit",
           cwd: process.cwd(),
           env: { ...process.env, MOCHA_ENV: "development" },
+          shell: process.platform === "win32",
         }
       );
 
@@ -173,7 +198,7 @@ class DevServer {
   </div>
   <div class="card">
     <p>Edit <code>.qml.ts</code> files to see live changes.</p>
-    <p>Debug server available on port <code>9229</code> (connect via VSCode extension)</p>
+    <p>Debug server available on port <code>${process.env.MOCHA_DEVTOOLS_PORT || "random"}</code> (connect via VSCode extension)</p>
   </div>
 </body>
 </html>`;
@@ -187,7 +212,8 @@ export async function run(args: string[]): Promise<void> {
     : args.indexOf("-p") >= 0
       ? args.indexOf("-p")
       : -1;
-  const port = portIndex >= 0 ? parseInt(args[portIndex + 1], 10) : 8090;
+  const explicitPort = portIndex >= 0 ? parseInt(args[portIndex + 1], 10) : undefined;
+  const port = await findFreePort(explicitPort);
   const watch = args.includes("--watch") || args.includes("-w") || args.length <= 1;
 
   if (!entry) {

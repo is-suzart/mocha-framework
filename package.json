@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "test:qml": "qmltestrunner-qt6 -input design-system/test/tst_*.qml",
     "format": "prettier --write 'packages/*/src/**/*.ts'",
-    "cli": "tsx packages/cli/src/index.ts"
+    "cli": "tsx packages/cli/src/index.ts",
+    "setup": "node scripts/bootstrap.mjs",
+    "doctor": "tsx packages/cli/src/index.ts doctor"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
