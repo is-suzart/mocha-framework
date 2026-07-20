@@ -47,10 +47,9 @@ export async function run(_args: string[]): Promise<void> {
   console.log("    ✅ Thread management");
   console.log("");
   console.log("  Architecture:");
-  console.log("    packages/core       - QObject, QProperty, Signals, Timer");
+  console.log("    packages/core       - QObject, QProperty, Signals, Timer, DebugServer");
   console.log("    packages/qml        - @QMLComponent, parser, bindings");
   console.log("    packages/kit        - CLI, dev server, type-gen");
-  console.log("    packages/devtools   - Inspector & debug tools");
   console.log("    packages/shared     - Common utilities");
   console.log("");
 }

@@ -365,11 +365,10 @@ async function linkLocalPackages(targetDir: string) {
 
   const mochaDeps = [
     "@mocha/core",
-    "@mocha/native",
+     "@mocha/native",
     "@mocha/qml",
     "@mocha/cli",
     "@mocha/kit",
-    "@mocha/devtools",
     "@mocha/shared",
   ];
 

@@ -173,7 +173,7 @@ class DevServer {
   </div>
   <div class="card">
     <p>Edit <code>.qml.ts</code> files to see live changes.</p>
-    <p>DevTools available at <code>/__mocha__/devtools</code></p>
+    <p>Debug server available on port <code>9229</code> (connect via VSCode extension)</p>
   </div>
 </body>
 </html>`;

@@ -5,11 +5,10 @@
   "description": "Mocha - The Qt TypeScript Framework (The bear that tames the Qt)",
   "type": "module",
   "scripts": {
-    "build": "tsc -b packages/shared packages/core packages/qml packages/kit packages/devtools packages/cli",
+    "build": "tsc -b packages/shared packages/core packages/qml packages/kit packages/cli",
     "build:core": "tsc -b packages/core",
     "build:qml": "tsc -b packages/qml",
     "build:kit": "tsc -b packages/kit",
-    "build:devtools": "tsc -b packages/devtools",
     "build:cli": "tsc -b packages/cli",
     "dev": "tsx packages/cli/src/index.ts dev",
     "typecheck": "tsc -b --dry",
@@ -17,6 +16,7 @@
     "lint": "eslint packages/*/src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:qml": "qmltestrunner-qt6 -input design-system/test/tst_*.qml",
     "format": "prettier --write 'packages/*/src/**/*.ts'",
     "cli": "tsx packages/cli/src/index.ts"
   },
