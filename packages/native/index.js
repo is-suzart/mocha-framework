@@ -22,6 +22,12 @@ function getPlatformKey() {
 const key = getPlatformKey();
 const binaryName = platformTriples[key] || platformTriples["linux-x64"];
 
+if (process.platform === "win32") {
+  const qtDir = process.env.QT6_DIR || "C:\\Qt\\6.8.2\\msvc2022_64";
+  const qtBin = join(qtDir, "bin");
+  process.env.PATH = `${qtBin};${process.env.PATH}`;
+}
+
 let native;
 
 try {
@@ -93,6 +99,8 @@ class NativeApp {
       join(basePath, "ui"),
       join(basePath, "..", "ui"),
       join(basePath, "design-system"),
+      join(basePath, "..", "design-system"),
+      join(basePath, "..", "..", "design-system"),
     ];
     for (const c of candidates) {
       if (existsSync(join(c, "MochaDS", "qmldir"))) {

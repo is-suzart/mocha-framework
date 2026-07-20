@@ -1,3 +1,4 @@
+#include <QString>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -6,7 +7,6 @@
 #include <QTimer>
 #include <QThread>
 #include <QVariant>
-#include <QString>
 #include <QMetaObject>
 #include <QMetaProperty>
 #include <QDebug>

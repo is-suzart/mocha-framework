@@ -34,8 +34,8 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint
     color: Theme.colors.background
 
-    font.family: Theme.typography.family
-    font.pixelSize: Theme.typography.sizeMd
+    // font.family: Theme.typography.family
+    // font.pixelSize: Theme.typography.sizeMd
 
     onThemeModeChanged: Theme.useSystemTheme = (themeMode === "system")
     onFlavorChanged: {

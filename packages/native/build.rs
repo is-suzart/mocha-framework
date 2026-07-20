@@ -7,6 +7,7 @@ struct QtPaths {
     include_dirs: Vec<String>,
     lib_dir: String,
     libs: Vec<String>,
+    #[allow(dead_code)]
     frameworks: Vec<String>,
     moc: String,
 }
@@ -42,8 +43,14 @@ fn main() {
     let mut cc = cc::Build::new();
     cc.cpp(true)
         .file("src/qt_bridge.cpp")
-        .flag("-std=c++17")
-        .flag("-fPIC");
+        .std("c++17")
+        .pic(true);
+
+    #[cfg(target_env = "msvc")]
+    {
+        cc.flag("/Zc:__cplusplus");
+        cc.flag("/permissive-");
+    }
 
     for inc in &qt.include_dirs {
         cc.include(inc);
@@ -301,8 +308,6 @@ fn find_moc_in(bins: &str, prefix: &str, _lib_dir: &str) -> String {
 }
 
 fn find_moc_fallback() -> String {
-    let exe = if cfg!(target_os = "windows") { "moc.exe" } else { "moc" };
-
     #[cfg(target_os = "linux")]
     let platform_paths = vec![
         "/usr/lib/qt6/moc".to_string(),
@@ -321,6 +326,7 @@ fn find_moc_fallback() -> String {
 
     #[cfg(target_os = "windows")]
     let platform_paths = vec![
+        "C:\\Qt\\6.8.2\\msvc2022_64\\bin\\moc.exe".to_string(),
         "C:\\Qt\\6.8.0\\msvc2022_64\\bin\\moc.exe".to_string(),
         "C:\\Qt\\6.7.0\\msvc2022_64\\bin\\moc.exe".to_string(),
         "C:\\Qt\\6.8.0\\msvc2019_64\\bin\\moc.exe".to_string(),
@@ -372,6 +378,7 @@ fn platform_qt_paths() -> Vec<String> {
 
     #[cfg(target_os = "windows")]
     return vec![
+        "C:\\Qt\\6.8.2\\msvc2022_64".into(),
         "C:\\Qt\\6.8.0\\msvc2022_64".into(),
         "C:\\Qt\\6.7.0\\msvc2022_64".into(),
         "C:\\Qt\\6.8.0\\msvc2019_64".into(),
