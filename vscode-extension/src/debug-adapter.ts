@@ -34,6 +34,10 @@ export class MochaDebugSession extends DebugSession {
   private _variables = new Map<number, DebugProtocol.Variable[]>();
   private _nextVarRef = 1000;
   private _breakpoints = new Map<string, DebugProtocol.Breakpoint[]>();
+  private _pendingBreakpoints: string[] | null = null;
+  private _methodToSource = new Map<string, { path: string; line: number }>();
+  private _pausedFile: string | null = null;
+  private _pausedLine = 0;
 
   constructor() {
     super();
@@ -56,10 +60,10 @@ export class MochaDebugSession extends DebugSession {
     this.sendEvent(new InitializedEvent());
   }
 
-  protected async launchRequest(
+  protected launchRequest(
     response: DebugProtocol.LaunchResponse,
     args: LaunchRequestArguments
-  ): Promise<void> {
+  ): void {
     this._port = args.port || (50000 + Math.floor(Math.random() * 10000));
     const cwd = args.cwd || process.cwd();
     const program = args.program;
@@ -93,71 +97,68 @@ export class MochaDebugSession extends DebugSession {
     this._process = spawn("npx", ["tsx", program, ...programArgs], {
       cwd,
       env: spawnEnv,
-      shell: true,   // use the user's shell so PATH (nvm/volta/etc.) resolves correctly
+      detached: true,
+      shell: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    let processExited = false;
-    let exitCode: number | null = null;
-
     this._process.stdout?.on("data", (data: Buffer) => {
-      this.sendEvent({
-        event: "output",
-        body: { category: "stdout", output: data.toString() },
-      } as any);
+      this.sendEvent({ event: "output", body: { category: "stdout", output: data.toString() } } as any);
     });
-
     this._process.stderr?.on("data", (data: Buffer) => {
-      this.sendEvent({
-        event: "output",
-        body: { category: "stderr", output: data.toString() },
-      } as any);
+      this.sendEvent({ event: "output", body: { category: "stderr", output: data.toString() } } as any);
     });
-
     this._process.on("exit", (code) => {
-      processExited = true;
-      exitCode = code;
-      if (exitCode !== 0) {
-        this.sendEvent(new TerminatedEvent());
-      } else {
-        this.sendEvent(new TerminatedEvent());
-      }
+      this.sendEvent({ event: "output", body: { category: "console", output: `[Mocha] Process exited (code=${code})\n` } } as any);
+      this.sendEvent(new TerminatedEvent());
     });
-
     this._process.on("error", (err) => {
-      processExited = true;
-      this.sendEvent({
-        event: "output",
-        body: { category: "stderr", output: `Failed to start process: ${err.message}\nMake sure 'npx' and 'tsx' are available in your PATH.\n` },
-      } as any);
-      this.sendErrorResponse(response, 1002, `Failed to start: ${err.message}`);
+      this.sendEvent({ event: "output", body: { category: "stderr", output: `[Mocha] Spawn error: ${err.message}\n` } } as any);
+      this.sendEvent(new TerminatedEvent());
     });
 
-    // Wait up to 15s for the debug server to come up, but abort if process exits
-    const serverUp = await this._waitForServer(30, 500, () => processExited);
-
-    if (processExited) {
-      this.sendErrorResponse(response, 1003, `Process exited before debug server started (code=${exitCode}). Check the Debug Console for details.`);
-      return;
-    }
-
-    if (!serverUp) {
-      // Server didn't come up but process is still alive — launch anyway (app might not use devtools)
-      this.sendEvent({
-        event: "output",
-        body: { category: "console", output: "[Mocha] Debug server not detected — running without inspector.\n" },
-      } as any);
-    }
-
+    // Respond immediately so VS Code unlocks the Debug Console
     this.sendEvent(new ThreadEvent("started", THREAD_V8));
     this.sendEvent(new ThreadEvent("started", THREAD_QT));
-
     this.sendResponse(response);
 
-    if (serverUp) {
-      this._startPausePolling();
-    }
+    // Log to Debug Console (now unblocked)
+    this.sendEvent({ event: "output", body: { category: "console", output: `[Mocha] Spawning: npx tsx "${program}"\n[Mocha] cwd: ${cwd}\n[Mocha] port: ${this._port}\n[Mocha] DISPLAY: ${process.env.DISPLAY ?? "(not set)"}\n` } } as any);
+
+    // Connect to inspector in background (no blocking)
+    this._connectInBackground();
   }
+
+  private _connectInBackground(): void {
+    let attempts = 0;
+    const maxAttempts = 40; // 20s total
+    const tryConnect = () => {
+      if (!this._process || attempts >= maxAttempts) {
+        if (attempts >= maxAttempts) {
+          this.sendEvent({ event: "output", body: { category: "console", output: "[Mocha] Inspector not available — running without debugger.\n" } } as any);
+        }
+        return;
+      }
+      attempts++;
+      this._fetchState()
+        .then(async () => {
+          this.sendEvent({ event: "output", body: { category: "console", output: "[Mocha] Inspector connected!\n" } } as any);
+          await this._debuggerAction("connect");
+          // Sync pending breakpoints now that server is up (race condition fix)
+          if (this._pendingBreakpoints && this._pendingBreakpoints.length > 0) {
+            try {
+              await this._httpPost("/debugger/setBreakpoints", { methods: this._pendingBreakpoints });
+              this.sendEvent({ event: "output", body: { category: "console", output: `[Mocha] Breakpoints synced: ${this._pendingBreakpoints.join(", ")}\n` } } as any);
+            } catch {}
+            this._pendingBreakpoints = null;
+          }
+          this._startPausePolling();
+        })
+        .catch(() => setTimeout(tryConnect, 500));
+    };
+    setTimeout(tryConnect, 500);
+  }
+
 
   protected configurationDoneRequest(
     response: DebugProtocol.ConfigurationDoneResponse,
@@ -205,19 +206,26 @@ export class MochaDebugSession extends DebugSession {
             const arrowDecl = lineText.match(/^\s*(?:private\s+|public\s+|protected\s+)?([a-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\(|\w+\s*=>)/);
             if (!foundMethod && arrowDecl) foundMethod = arrowDecl[1];
           }
-          if (foundMethod) methodNames.push(foundMethod);
+          if (foundMethod) {
+            methodNames.push(foundMethod);
+            // Map method → source for stack trace reconstruction
+            this._methodToSource.set(foundMethod, { path: args.source.path!, line: bp.line });
+          }
         }
       } catch {}
     }
 
+    // Sync breakpoints to DebugServer — immediate attempt + deferred fallback
     try {
       if (methodNames.length > 0) {
         await this._httpPost("/debugger/setBreakpoints", { methods: methodNames });
-      } else {
-        // No methods detected — clear remote breakpoints
-        await this._httpPost("/debugger/setBreakpoints", { methods: [] });
+        this._pendingBreakpoints = null;
       }
-    } catch {}
+    } catch {
+      // Server not up yet — store for deferred sync in _connectInBackground
+      this._pendingBreakpoints = methodNames.length > 0 ? methodNames : [];
+      this.sendEvent({ event: "output", body: { category: "console", output: `[Mocha] Breakpoints queued for sync: ${this._pendingBreakpoints.join(", ") || "(none)"}\n` } } as any);
+    }
 
     response.body = { breakpoints: verifiedBreakpoints };
     this.sendResponse(response);
@@ -237,31 +245,37 @@ export class MochaDebugSession extends DebugSession {
     response: DebugProtocol.StackTraceResponse,
     args: DebugProtocol.StackTraceArguments
   ): Promise<void> {
-    const state = await this._fetchState();
-    const frames: StackFrame[] = [];
+    try {
+      const state = await this._fetchState();
+      const frames: StackFrame[] = [];
 
-    if (state?.componentTree) {
-      const root = state.componentTree[0];
-      if (root) {
+      if (state?.componentTree) {
+        const root = state.componentTree[0];
+        if (root) {
+          const source = this._pausedFile
+            ? new Source(path.basename(this._pausedFile), this._pausedFile)
+            : undefined;
+          frames.push(
+            new StackFrame(0, `${root.name || root.className}`, source, this._pausedLine || 1, 0)
+          );
+        }
+      }
+
+      if (state?.qmlTree && state.qmlTree.length > 0) {
         frames.push(
-          new StackFrame(
-            0,
-            `${root.name || root.className}`,
-            undefined,
-            1,
-            0
-          )
+          new StackFrame(1, `QML: ${state.qmlTree[0].type}`, undefined, 1, 0)
         );
       }
-    }
 
-    if (state?.qmlTree && state.qmlTree.length > 0) {
-      frames.push(
-        new StackFrame(1, `QML: ${state.qmlTree[0].type}`, undefined, 1, 0)
-      );
-    }
+      if (frames.length === 0) {
+        frames.push(new StackFrame(0, "Mocha App", undefined, 1, 0));
+      }
 
-    response.body = { stackFrames: frames, totalFrames: frames.length };
+      response.body = { stackFrames: frames, totalFrames: frames.length };
+    } catch (err: any) {
+      this.sendEvent({ event: "output", body: { category: "stderr", output: `[Mocha] stackTraceRequest error: ${err.message}\n` } } as any);
+      response.body = { stackFrames: [new StackFrame(0, "Mocha App", undefined, 1, 0)], totalFrames: 1 };
+    }
     this.sendResponse(response);
   }
 
@@ -269,35 +283,43 @@ export class MochaDebugSession extends DebugSession {
     response: DebugProtocol.ScopesResponse,
     _args: DebugProtocol.ScopesArguments
   ): Promise<void> {
-    const state = await this._fetchState();
-    const scopes: Scope[] = [];
+    try {
+      const state = await this._fetchState();
+      const scopes: Scope[] = [];
 
-    if (state?.properties) {
-      const varRef = this._nextVarRef++;
-      const vars: DebugProtocol.Variable[] = [];
-      for (const [objName, props] of Object.entries(state.properties)) {
-        const propEntries = Object.entries(props as Record<string, any>);
-        for (const [propName, propInfo] of propEntries) {
-          vars.push({
-            name: `${objName}.${propName}`,
-            value: JSON.stringify(propInfo.value),
-            variablesReference: 0,
-            type: propInfo.type,
-          });
+      if (state?.properties) {
+        const varRef = this._nextVarRef++;
+        const vars: DebugProtocol.Variable[] = [];
+        const entries = Object.entries(state.properties as Record<string, Record<string, any>>);
+        this.sendEvent({ event: "output", body: { category: "console", output: `[Mocha] scopes: ${entries.length} objects found\n` } } as any);
+        for (const [objName, props] of entries) {
+          const propEntries = Object.entries(props);
+          for (const [propName, propInfo] of propEntries) {
+            vars.push({
+              name: `${objName}.${propName}`,
+              value: JSON.stringify(propInfo?.value ?? propInfo),
+              variablesReference: 0,
+              type: propInfo?.type ?? "unknown",
+            });
+          }
         }
+        this._variables.set(varRef, vars);
+        scopes.push(new Scope("QObject Properties", varRef, false));
+        this.sendEvent({ event: "output", body: { category: "console", output: `[Mocha] QObject Properties scope: ${vars.length} variables\n` } } as any);
       }
-      this._variables.set(varRef, vars);
-      scopes.push(new Scope("QObject Properties", varRef, false));
-    }
 
-    if (state?.qmlTree && state.qmlTree.length > 0) {
-      const varRef = this._nextVarRef++;
-      const vars = this._qmlTreeToVariables(state.qmlTree);
-      this._variables.set(varRef, vars);
-      scopes.push(new Scope("QML Widgets", varRef, false));
-    }
+      if (state?.qmlTree && state.qmlTree.length > 0) {
+        const varRef = this._nextVarRef++;
+        const vars = this._qmlTreeToVariables(state.qmlTree);
+        this._variables.set(varRef, vars);
+        scopes.push(new Scope("QML Widgets", varRef, false));
+      }
 
-    response.body = { scopes };
+      response.body = { scopes };
+    } catch (err: any) {
+      this.sendEvent({ event: "output", body: { category: "stderr", output: `[Mocha] scopesRequest error: ${err.message}\n` } } as any);
+      response.body = { scopes: [] };
+    }
     this.sendResponse(response);
   }
 
@@ -330,44 +352,44 @@ export class MochaDebugSession extends DebugSession {
     this.sendResponse(response);
   }
 
-  protected continueRequest(
+  protected async continueRequest(
     response: DebugProtocol.ContinueResponse,
     _args: DebugProtocol.ContinueArguments
-  ): void {
-    this._debuggerAction("resume");
+  ): Promise<void> {
+    await this._debuggerAction("resume");
     response.body = { allThreadsContinued: true };
     this.sendResponse(response);
   }
 
-  protected nextRequest(
+  protected async nextRequest(
     response: DebugProtocol.NextResponse,
     _args: DebugProtocol.NextArguments
-  ): void {
-    this._debuggerAction("step");
+  ): Promise<void> {
+    await this._debuggerAction("step");
     this.sendResponse(response);
   }
 
-  protected stepInRequest(
+  protected async stepInRequest(
     response: DebugProtocol.StepInResponse,
     _args: DebugProtocol.StepInArguments
-  ): void {
-    this._debuggerAction("step");
+  ): Promise<void> {
+    await this._debuggerAction("step");
     this.sendResponse(response);
   }
 
-  protected stepOutRequest(
+  protected async stepOutRequest(
     response: DebugProtocol.StepOutResponse,
     _args: DebugProtocol.StepOutArguments
-  ): void {
-    this._debuggerAction("resume");
+  ): Promise<void> {
+    await this._debuggerAction("resume");
     this.sendResponse(response);
   }
 
-  protected pauseRequest(
+  protected async pauseRequest(
     response: DebugProtocol.PauseResponse,
     _args: DebugProtocol.PauseArguments
-  ): void {
-    this._debuggerAction("pause");
+  ): Promise<void> {
+    await this._debuggerAction("pause");
     this.sendEvent(new StoppedEvent("pause", THREAD_V8));
     this.sendResponse(response);
   }
@@ -423,15 +445,15 @@ export class MochaDebugSession extends DebugSession {
     try { await this._httpGet("/debugger/shutdown"); } catch {}
     await sleep(300);
 
-    // 2. SIGTERM directly to the child pid
+    // 2. SIGTERM to the process group (detached: true)
     if (!proc.killed && proc.pid) {
-      try { process.kill(proc.pid, "SIGTERM"); } catch {}
+      try { process.kill(-proc.pid, "SIGTERM"); } catch {}
       await sleep(1500);
     }
 
     // 3. SIGKILL if still alive
     if (!proc.killed && proc.pid) {
-      try { process.kill(proc.pid, "SIGKILL"); } catch {}
+      try { process.kill(-proc.pid, "SIGKILL"); } catch {}
     }
   }
 
@@ -524,15 +546,18 @@ export class MochaDebugSession extends DebugSession {
     });
   }
 
-  private _debuggerAction(action: string): void {
-    const req = http.request({
-      hostname: "localhost",
-      port: this._port,
-      path: `/debugger/${action}`,
-      method: "GET",
+  private _debuggerAction(action: string): Promise<void> {
+    return new Promise((resolve) => {
+      const req = http.request({
+        hostname: "localhost",
+        port: this._port,
+        path: `/debugger/${action}`,
+        method: "GET",
+      });
+      req.on("response", () => resolve());
+      req.on("error", () => resolve());
+      req.end();
     });
-    req.on("error", () => {});
-    req.end();
   }
 
   private _httpPost(path: string, body: unknown): Promise<string> {
@@ -562,6 +587,11 @@ export class MochaDebugSession extends DebugSession {
       try {
         const state = await this._fetchState();
         if (state?.debuggerState?.paused) {
+          // Look up paused method to get file/line for stack trace
+          const pausedMethod = state.debuggerState.pausedMethod as string | undefined;
+          const src = pausedMethod ? this._methodToSource.get(pausedMethod) : null;
+          this._pausedFile = src?.path ?? null;
+          this._pausedLine = src?.line ?? 1;
           this.sendEvent(new StoppedEvent("breakpoint", THREAD_V8));
           // Wait for resume before resuming poll
           const waitForResume = async () => {
@@ -571,6 +601,8 @@ export class MochaDebugSession extends DebugSession {
               const s = await this._fetchState();
               if (s?.debuggerState?.paused) { waitForResume(); return; }
             } catch {}
+            this._pausedFile = null;
+            this._pausedLine = 0;
             setTimeout(poll, 500);
           };
           waitForResume();
