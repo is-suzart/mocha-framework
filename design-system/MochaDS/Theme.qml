@@ -1,5 +1,5 @@
 pragma Singleton
-import QtQuick 2.15
+import QtQuick
 
 Item {
     id: root
@@ -110,10 +110,7 @@ Item {
             
             // Rule 1: Correct Light Mode fallback using the latte palette
             if (!systemDark) {
-                var lattePalette = palettes["latte"];
-                if (lattePalette[name] !== undefined) {
-                    return lattePalette[name];
-                }
+                return ThemeGenerated.resolveColor("latte", name);
             }
 
             // Rule 3: Programmatic variations for semantic and accent colors to prevent pointing to the same highlight color
@@ -145,197 +142,73 @@ Item {
             return sysPalette.window
         }
 
-        var palette = palettes[flavor];
-        if (!palette) palette = palettes["mocha"];
-        return palette[name] || "#000000";
+        return ThemeGenerated.resolveColor(flavor, name);
     }
 
-    readonly property var palettes: {
-        return {
-            "macchiato": {
-                "rosewater": "#f4dbd6",
-                "flamingo": "#f0c6c6",
-                "pink": "#f5bde6",
-                "mauve": "#c6a0f6",
-                "red": "#ed8796",
-                "maroon": "#ee99a0",
-                "peach": "#f5a97f",
-                "yellow": "#eed49f",
-                "green": "#a6da95",
-                "teal": "#8bd5ca",
-                "sky": "#91d7e3",
-                "sapphire": "#7dc4e4",
-                "blue": "#8aadf4",
-                "lavender": "#b7bdf8",
-                "text": "#cad3f5",
-                "subtext1": "#b8c0e0",
-                "subtext0": "#a5adcb",
-                "overlay2": "#939ab7",
-                "overlay1": "#8087a2",
-                "overlay0": "#6e738d",
-                "surface2": "#5b6078",
-                "surface1": "#494d64",
-                "surface0": "#363a4f",
-                "base": "#24273a",
-                "mantle": "#1e2030",
-                "crust": "#181926",
-                "contrastDark": "#1e2030",
-                "contrastLight": "#eff1f5"
-            },
-            "mocha": {
-                "rosewater": "#f5e0dc",
-                "flamingo": "#f2cdcd",
-                "pink": "#f5c2e7",
-                "mauve": "#cba6f7",
-                "red": "#f38ba8",
-                "maroon": "#eba0ac",
-                "peach": "#fab387",
-                "yellow": "#f9e2af",
-                "green": "#a6e3a1",
-                "teal": "#94e2d5",
-                "sky": "#89dceb",
-                "sapphire": "#74c7ec",
-                "blue": "#89b4fa",
-                "lavender": "#b4befe",
-                "text": "#cdd6f4",
-                "subtext1": "#bac2de",
-                "subtext0": "#a6adc8",
-                "overlay2": "#585b70",
-                "overlay1": "#7f849c",
-                "overlay0": "#6c7086",
-                "surface2": "#585b70",
-                "surface1": "#45475a",
-                "surface0": "#313244",
-                "base": "#1e1e2e",
-                "mantle": "#181825",
-                "crust": "#11111b",
-                "contrastDark": "#11111b",
-                "contrastLight": "#eff1f5"
-            },
-            "frappe": {
-                "rosewater": "#f2d5cf",
-                "flamingo": "#eebebe",
-                "pink": "#f4b8e4",
-                "mauve": "#ca9ee6",
-                "red": "#e78284",
-                "maroon": "#ea999c",
-                "peach": "#ef9f76",
-                "yellow": "#e5c890",
-                "green": "#a6d189",
-                "teal": "#81c8be",
-                "sky": "#99d1db",
-                "sapphire": "#85c1dc",
-                "blue": "#8caaee",
-                "lavender": "#babbf1",
-                "text": "#c6d0f5",
-                "subtext1": "#b5bfe2",
-                "subtext0": "#a5adce",
-                "overlay2": "#949cbb",
-                "overlay1": "#838ba7",
-                "overlay0": "#737994",
-                "surface2": "#626880",
-                "surface1": "#51576d",
-                "surface0": "#414559",
-                "base": "#303446",
-                "mantle": "#292c3c",
-                "crust": "#232634",
-                "contrastDark": "#292c3c",
-                "contrastLight": "#eff1f5"
-            },
-            "latte": {
-                "rosewater": "#dc8a78",
-                "flamingo": "#dd7878",
-                "pink": "#ea76cb",
-                "mauve": "#8839ef",
-                "red": "#d20f39",
-                "maroon": "#e64553",
-                "peach": "#fe640b",
-                "yellow": "#df8e1d",
-                "green": "#40a02b",
-                "teal": "#179287",
-                "sky": "#04a5e5",
-                "sapphire": "#209fb5",
-                "blue": "#1e66f5",
-                "lavender": "#7287fd",
-                "text": "#4c4f69",
-                "subtext1": "#5c5f77",
-                "subtext0": "#6c6f85",
-                "overlay2": "#7c7f93",
-                "overlay1": "#8c8fa1",
-                "overlay0": "#9ca0b0",
-                "surface2": "#acb0be",
-                "surface1": "#bcc0cc",
-                "surface0": "#ccd0da",
-                "base": "#eff1f5",
-                "mantle": "#e6e9ef",
-                "crust": "#dce0e8",
-                "contrastDark": "#4c4f69",
-                "contrastLight": "#eff1f5"
-            },
-            "vercel": {
-                "rosewater": "#a1a1a1",
-                "flamingo": "#a1a1a1",
-                "pink": "#a1a1a1",
-                "mauve": "#ffffff",
-                "red": "#ee0000",
-                "maroon": "#ee0000",
-                "peach": "#f5a623",
-                "yellow": "#f5a623",
-                "green": "#50e3c2",
-                "teal": "#50e3c2",
-                "sky": "#50e3c2",
-                "sapphire": "#777777",
-                "blue": "#444444",
-                "lavender": "#777777",
-                "text": "#ffffff",
-                "subtext1": "#a1a1a1",
-                "subtext0": "#888888",
-                "overlay2": "#777777",
-                "overlay1": "#666666",
-                "overlay0": "#555555",
-                "surface2": "#444444",
-                "surface1": "#333333",
-                "surface0": "#222222",
-                "base": "#000000",
-                "mantle": "#111111",
-                "crust": "#1a1a1a",
-                "contrastDark": "#000000",
-                "contrastLight": "#ffffff"
-            },
-            "vercel-light": {
-                "rosewater": "#666666",
-                "flamingo": "#666666",
-                "pink": "#666666",
-                "mauve": "#000000",
-                "red": "#ee0000",
-                "maroon": "#ee0000",
-                "peach": "#f5a623",
-                "yellow": "#f5a623",
-                "green": "#007a22",
-                "teal": "#007a22",
-                "sky": "#007a22",
-                "sapphire": "#555555",
-                "blue": "#999999",
-                "lavender": "#555555",
-                "text": "#000000",
-                "subtext1": "#666666",
-                "subtext0": "#888888",
-                "overlay2": "#555555",
-                "overlay1": "#666666",
-                "overlay0": "#888888",
-                "surface2": "#999999",
-                "surface1": "#cccccc",
-                "surface0": "#eaeaea",
-                "base": "#ffffff",
-                "mantle": "#fafafa",
-                "crust": "#f5f5f5",
-                "contrastDark": "#000000",
-                "contrastLight": "#ffffff"
-            }
-        };
+    // Brand theme overrides — set via bridge context property _brandTheme
+    function _resolveScheme(name) {
+        var _brand = _brandTheme !== undefined ? _brandTheme : null
+        if (_brand && _brand[name] !== undefined) return _brand[name]
+        return root.getColor(_schemeFallback(name))
     }
 
-    // Colors
+    function _resolveTypeOverride(name, fallback) {
+        var _brand = _brandTheme !== undefined ? _brandTheme : null
+        if (_brand && _brand[name] !== undefined) return _brand[name]
+        return fallback
+    }
+
+    function _schemeFallback(schemeKey) {
+        switch (schemeKey) {
+            case "schemePrimary": return "mauve"
+            case "schemeOnPrimary": return root.isDark ? "crust" : "base"
+            case "schemePrimaryContainer": return root.isDark ? "surface2" : "surface0"
+            case "schemeOnPrimaryContainer": return root.isDark ? "text" : "text"
+            case "schemeSecondary": return "blue"
+            case "schemeOnSecondary": return root.isDark ? "crust" : "base"
+            case "schemeSecondaryContainer": return root.isDark ? "surface1" : "surface0"
+            case "schemeOnSecondaryContainer": return root.isDark ? "text" : "text"
+            case "schemeTertiary": return "teal"
+            case "schemeOnTertiary": return root.isDark ? "crust" : "base"
+            case "schemeSurface": return "surface0"
+            case "schemeOnSurface": return "text"
+            case "schemeSurfaceVariant": return "surface1"
+            case "schemeOnSurfaceVariant": return "subtext0"
+            case "schemeBackground": return "base"
+            case "schemeOnBackground": return "text"
+            case "schemeError": return "red"
+            case "schemeOnError": return root.isDark ? "crust" : "base"
+            case "schemeOutline": return "overlay0"
+            case "schemeOutlineVariant": return "overlay1"
+        }
+        return "text"
+    }
+
+    // ── Semantic Color Scheme (Material-like API) ──
+    readonly property QtObject scheme: QtObject {
+        readonly property color primary: root._resolveScheme("schemePrimary")
+        readonly property color onPrimary: root._resolveScheme("schemeOnPrimary")
+        readonly property color primaryContainer: root._resolveScheme("schemePrimaryContainer")
+        readonly property color onPrimaryContainer: root._resolveScheme("schemeOnPrimaryContainer")
+        readonly property color secondary: root._resolveScheme("schemeSecondary")
+        readonly property color onSecondary: root._resolveScheme("schemeOnSecondary")
+        readonly property color secondaryContainer: root._resolveScheme("schemeSecondaryContainer")
+        readonly property color onSecondaryContainer: root._resolveScheme("schemeOnSecondaryContainer")
+        readonly property color tertiary: root._resolveScheme("schemeTertiary")
+        readonly property color onTertiary: root._resolveScheme("schemeOnTertiary")
+        readonly property color surface: root._resolveScheme("schemeSurface")
+        readonly property color onSurface: root._resolveScheme("schemeOnSurface")
+        readonly property color surfaceVariant: root._resolveScheme("schemeSurfaceVariant")
+        readonly property color onSurfaceVariant: root._resolveScheme("schemeOnSurfaceVariant")
+        readonly property color background: root._resolveScheme("schemeBackground")
+        readonly property color onBackground: root._resolveScheme("schemeOnBackground")
+        readonly property color error: root._resolveScheme("schemeError")
+        readonly property color onError: root._resolveScheme("schemeOnError")
+        readonly property color outline: root._resolveScheme("schemeOutline")
+        readonly property color outlineVariant: root._resolveScheme("schemeOutlineVariant")
+    }
+
+    // Colors (retrocompatível — raw palette)
     readonly property QtObject colors: QtObject {
         // Theme Colors
         readonly property color base: root.getColor("base")
@@ -394,10 +267,12 @@ Item {
 
     // Typography Config
     readonly property QtObject typography: QtObject {
-        // Font Families
-        readonly property string family: root.fontFamily
-        readonly property string familyMedium: root.fontFamilyMedium
-        readonly property string familyBold: root.fontFamilyBold
+        // Font Families (overridable via _brandTheme)
+        readonly property string family: root._resolveTypeOverride("typeFamily", root.fontFamily)
+        readonly property string familyMedium: root._resolveTypeOverride("typeFamilyMedium", root.fontFamilyMedium)
+        readonly property string familyBold: root._resolveTypeOverride("typeFamilyBold", root.fontFamilyBold)
+        readonly property string familyDisplay: root._resolveTypeOverride("typeFamilyDisplay", "Geist")
+        readonly property string familyMono: root._resolveTypeOverride("typeFamilyMono", "Geist Mono")
 
         // Font Sizes
         readonly property real sizeXs: 10

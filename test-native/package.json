@@ -11,14 +11,15 @@
     "postinstall": "cd node_modules/@mocha/native && npx napi build --platform --release 2>/dev/null || true"
   },
   "dependencies": {
-    "@mocha/core": "file:../packages/core",
-    "@mocha/native": "file:../packages/native",
-    "@mocha/qml": "file:../packages/qml",
-    "@mocha/shared": "file:../packages/shared"
+    "@mocha/core": "workspace:*",
+    "@mocha/native": "workspace:*",
+    "@mocha/qml": "workspace:*",
+    "@mocha/shared": "workspace:*",
+    "@mocha/tokens": "workspace:*"
   },
   "devDependencies": {
-    "@mocha/cli": "file:../packages/cli",
-    "@mocha/kit": "file:../packages/kit",
+    "@mocha/cli": "workspace:*",
+    "@mocha/kit": "workspace:*",
     "typescript": "^5.5.0",
     "tsx": "^4.15.0"
   }
