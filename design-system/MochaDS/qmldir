@@ -1,5 +1,6 @@
 module MochaDS
 singleton Theme Theme.qml
+singleton ThemeGenerated ThemeGenerated.qml
 singleton MediaQuery MediaQuery.qml
 singleton MochaI18n MochaI18n.qml
 singleton Pipes Pipes.qml
@@ -49,6 +50,10 @@ CozySkeleton CozySkeleton.qml
 CozySpinner CozySpinner.qml
 EmptyState EmptyState.qml
 FocusRing FocusRing.qml
+H1 H1.qml
+H2 H2.qml
+H3 H3.qml
+H4 H4.qml
 HoverCard HoverCard.qml
 Modal Modal.qml
 Popover Popover.qml
@@ -89,6 +94,7 @@ CozyGrid CozyGrid.qml
 Div Div.qml
 HStack HStack.qml
 Separator Separator.qml
+Span Span.qml
 VStack VStack.qml
 Case Case.qml
 Switcher Switcher.qml
@@ -99,6 +105,7 @@ ItemsPerPage ItemsPerPage.qml
 NavigationBar NavigationBar.qml
 NavigationItem NavigationItem.qml
 Paginator Paginator.qml
+P P.qml
 Route Route.qml
 RouterLink RouterLink.qml
 Router Router.qml
