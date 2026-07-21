@@ -17,8 +17,18 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QColor>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <functional>
 #include <cstdio>
+#include <QQmlEngine>
+#include <QFile>
+#include <QDir>
+#include <QDateTime>
+
+#include "mocha_list_model.h"
 
 // ── MochaPropertyMap: TS ↔ QML proxy via QQmlPropertyMap ──
 //
@@ -42,6 +52,39 @@ public:
     int seq() const { return _seq; }
 
     Q_INVOKABLE void setValue(QString name, QString value) {
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(value.toUtf8(), &parseError);
+        if (parseError.error == QJsonParseError::NoError) {
+            if (doc.isArray()) {
+                QVariantList variantList = doc.array().toVariantList();
+                insert(name, QVariant(variantList));
+                _seq++;
+                fprintf(stderr, "[C++ MochaPropertyMap] setValue('%s', QVariantList[%d]), _seq=%d\n",
+                    name.toUtf8().constData(), (int)variantList.size(), _seq);
+                emit seqChanged();
+                return;
+            }
+            if (doc.isObject()) {
+                QVariantMap variantMap = doc.object().toVariantMap();
+                insert(name, QVariant(variantMap));
+                _seq++;
+                fprintf(stderr, "[C++ MochaPropertyMap] setValue('%s', QVariantMap[%d]), _seq=%d\n",
+                    name.toUtf8().constData(), (int)variantMap.size(), _seq);
+                emit seqChanged();
+                return;
+            }
+        }
+        if (value.startsWith("#") && (value.length() == 7 || value.length() == 9)) {
+            QColor color(value);
+            if (color.isValid()) {
+                insert(name, QVariant::fromValue(color));
+                _seq++;
+                fprintf(stderr, "[C++ MochaPropertyMap] setValue('%s', QColor('%s')), _seq=%d\n",
+                    name.toUtf8().constData(), value.toUtf8().constData(), _seq);
+                emit seqChanged();
+                return;
+            }
+        }
         insert(name, QVariant(value));
         _seq++;
         fprintf(stderr, "[C++ MochaPropertyMap] setValue('%s', '%s'), _seq=%d\n",
@@ -90,9 +133,41 @@ public:
         return _pendingCalls.takeFirst();
     }
 
+    void notifySeqChanged() {
+        _seq++;
+        emit seqChanged();
+    }
+
 signals:
     void seqChanged();
 };
+
+static const char* SHELL_QML = R"mocha-shell(
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Window
+
+ApplicationWindow {
+    id: mochaShell
+    objectName: "mochaShell"
+    visible: true
+    title: "Mocha App"
+
+    property string mochaSource: ""
+
+    onMochaSourceChanged: {
+        if (mochaSource !== "") {
+            mochaLoader.source = mochaSource
+        }
+    }
+
+    Loader {
+        id: mochaLoader
+        objectName: "mochaLoader"
+        anchors.fill: parent
+    }
+}
+)mocha-shell";
 
 static void mochaMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
     fprintf(stderr, "[QT %s] %s\n",
@@ -171,6 +246,66 @@ void qml_engine_load_data(void* engine, const char* qml_data, const char* base_p
     QUrl baseUrl = QUrl::fromLocalFile(QString::fromUtf8(base_path));
     e->loadData(QByteArray(qml_data), baseUrl);
     fprintf(stderr, "[MOCHA DEBUG] QML loadData completed\n");
+}
+
+void qml_engine_load_shell(void* engine, const char* import_path) {
+    auto* e = static_cast<QQmlApplicationEngine*>(engine);
+    fprintf(stderr, "[MOCHA DEBUG] Loading MochaAppShell...\n");
+    if (import_path && import_path[0] != '\0') {
+        fprintf(stderr, "[MOCHA DEBUG] Adding import path: %s\n", import_path);
+        e->addImportPath(QString::fromUtf8(import_path));
+    }
+    e->loadData(QByteArray(SHELL_QML), QUrl());
+    fprintf(stderr, "[MOCHA DEBUG] MochaAppShell loaded\n");
+}
+
+void qml_engine_set_shell_source(void* engine, const char* qml_data) {
+    auto* e = static_cast<QQmlApplicationEngine*>(engine);
+    const auto roots = e->rootObjects();
+    if (roots.isEmpty()) {
+        fprintf(stderr, "[MOCHA DEBUG] set_shell_source: no root objects\n");
+        return;
+    }
+
+    QObject* shell = roots.first();
+    QObject* loader = shell->findChild<QObject*>("mochaLoader");
+    if (!loader) {
+        fprintf(stderr, "[MOCHA DEBUG] set_shell_source: loader not found\n");
+        return;
+    }
+
+    QString tempDir = QDir::tempPath();
+    QString fileName = QString("mocha_content_%1.qml").arg(QDateTime::currentMSecsSinceEpoch());
+    QString filePath = tempDir + "/" + fileName;
+
+    QFile file(filePath);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        file.write(qml_data);
+        file.close();
+        fprintf(stderr, "[MOCHA DEBUG] Wrote content QML to: %s (%d bytes)\n",
+            filePath.toUtf8().constData(), (int)strlen(qml_data));
+    } else {
+        fprintf(stderr, "[MOCHA DEBUG] Failed to write content QML to: %s\n",
+            filePath.toUtf8().constData());
+        return;
+    }
+
+    e->clearComponentCache();
+    loader->setProperty("source", QUrl::fromLocalFile(filePath));
+    fprintf(stderr, "[MOCHA DEBUG] Loader source updated to: %s\n", filePath.toUtf8().constData());
+}
+
+void qml_engine_set_shell_window_props(void* engine, const char* title, int width, int height) {
+    auto* e = static_cast<QQmlApplicationEngine*>(engine);
+    const auto roots = e->rootObjects();
+    if (roots.isEmpty()) return;
+
+    QObject* shell = roots.first();
+    if (title && title[0] != '\0') {
+        shell->setProperty("title", QString::fromUtf8(title));
+    }
+    if (width > 0) shell->setProperty("width", width);
+    if (height > 0) shell->setProperty("height", height);
 }
 
 void* qml_engine_root_objects(void* engine) {
@@ -560,6 +695,42 @@ void mocha_window_start_system_move(void* obj) {
         ((void (*)(id, SEL, id))objc_msgSend)(nsWindow, sel_registerName("performWindowDragWithEvent:"), event);
     }
 #endif
+}
+
+// ── MochaPropertyMap: set QObject property (for models) ──
+
+void mocha_property_map_set_qobject(void* obj, const char* key, void* qobj) {
+    auto* map = static_cast<MochaPropertyMap*>(obj);
+    auto* qobject = static_cast<QObject*>(qobj);
+    QQmlEngine::setObjectOwnership(qobject, QQmlEngine::CppOwnership);
+    map->insert(QString::fromUtf8(key), QVariant::fromValue(qobject));
+    map->notifySeqChanged();
+}
+
+// ── MochaListModel factory functions ──
+
+void* mocha_list_model_create() {
+    auto* model = new MochaListModel();
+    QQmlEngine::setObjectOwnership(model, QQmlEngine::CppOwnership);
+    return model;
+}
+
+void mocha_list_model_destroy(void* obj) {
+    delete static_cast<MochaListModel*>(obj);
+}
+
+void mocha_list_model_set_rows(void* obj, const char* json) {
+    auto* model = static_cast<MochaListModel*>(obj);
+    QString str = QString::fromUtf8(json);
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(str.toUtf8(), &parseError);
+    if (parseError.error == QJsonParseError::NoError && doc.isArray()) {
+        model->setRows(doc.array());
+    }
+}
+
+void mocha_list_model_clear(void* obj) {
+    static_cast<MochaListModel*>(obj)->clear();
 }
 
 } // extern "C"
