@@ -2,6 +2,7 @@ import { Logger } from "@mocha/shared";
 import * as esbuild from "esbuild";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execSync } from "node:child_process";
 
 const logger = new Logger("build");
 
@@ -11,6 +12,9 @@ export interface BuildOptions {
   minify?: boolean;
   sourceMap?: boolean;
   target?: string;
+  format?: "deb" | "appimage" | "exe" | "dmg";
+  name?: string;
+  version?: string;
 }
 
 export async function run(args: string[]): Promise<void> {
@@ -23,6 +27,10 @@ export async function run(args: string[]): Promise<void> {
 
   const minify = args.includes("--minify");
   const sourceMap = !args.includes("--no-sourcemap");
+  const format = parseFormat(args);
+  const appName = parseOpt(args, "--name", detectAppName());
+  const appVersion = parseOpt(args, "--app-version", "0.1.0");
+  const cliIcon = parseOpt(args, "--icon", "");
 
   if (!entry) {
     logger.error("No entry file specified and no default found");
@@ -34,11 +42,16 @@ export async function run(args: string[]): Promise<void> {
   const outputDir = path.resolve(process.cwd(), output);
   const targetPlatform = detectTarget(args);
 
+  const appMeta = readAppMetaFromSource(entryPath);
+  const finalName = appName !== detectAppName() ? appName : (appMeta.name || appName);
+  const iconPath = resolveIcon(cliIcon || undefined, appMeta, entryPath, sanitizeAppName(finalName));
+
   logger.info("Building Mocha application...");
   logger.info(`  Entry:    ${entry}`);
   logger.info(`  Output:   ${outputDir}`);
   logger.info(`  Minify:   ${minify}`);
   logger.info(`  Target:   ${targetPlatform}`);
+  if (format) logger.info(`  Format:   ${format}`);
 
   const startTime = performance.now();
 
@@ -46,7 +59,12 @@ export async function run(args: string[]): Promise<void> {
     await buildProject({ entry: entryPath, output: outputDir, minify, sourceMap }, targetPlatform);
     const elapsed = (performance.now() - startTime).toFixed(0);
     logger.info(`Build completed in ${elapsed}ms`);
-    logger.info(`Run with: node ${path.join(output, "run.js")}`);
+
+    if (format) {
+      await packageProject(outputDir, format, { name: finalName, version: appVersion, target: targetPlatform, icon: iconPath, appMeta });
+    } else {
+      logger.info(`Run with: node ${path.join(output, "run.js")}`);
+    }
   } catch (err) {
     logger.error("Build failed:", err);
     process.exit(1);
@@ -189,5 +207,189 @@ function findEntry(): string | null {
       return candidate;
     }
   }
+  const srcDir = path.resolve(process.cwd(), "src");
+  if (fs.existsSync(srcDir)) {
+    try {
+      for (const entry of fs.readdirSync(srcDir, { recursive: true })) {
+        const name = String(entry);
+        if (name.endsWith(".qml.ts")) {
+          return path.join("src", name);
+        }
+      }
+    } catch {}
+  }
   return null;
+}
+
+function parseFormat(args: string[]): BuildOptions["format"] {
+  const idx = args.indexOf("--format");
+  if (idx >= 0 && args[idx + 1]) {
+    const fmt = args[idx + 1];
+    if (["deb", "appimage", "exe", "dmg"].includes(fmt)) {
+      return fmt as BuildOptions["format"];
+    }
+    logger.warn(`Unknown format: ${fmt}. Valid: deb, appimage, exe, dmg`);
+  }
+  return undefined;
+}
+
+function parseOpt(args: string[], flag: string, fallback: string): string {
+  const idx = args.indexOf(flag);
+  if (idx >= 0 && args[idx + 1]) return args[idx + 1];
+  return fallback;
+}
+
+interface AppMeta {
+  name?: string;
+  description?: string;
+  color?: string;
+  icons?: { svg?: string; png_192?: string; png_512?: string; ico?: string; icns?: string };
+  platforms?: {
+    linux?: { categories?: string[]; terminal?: boolean };
+    windows?: { appId?: string };
+    mac?: { bundleId?: string };
+  };
+}
+
+function readAppMetaFromSource(entryPath: string): AppMeta {
+  try {
+    const source = fs.readFileSync(entryPath, "utf-8");
+    const match = source.match(/@AppMeta\s*\(\s*\{([\s\S]*?)\}\s*\)/);
+    if (!match) return {};
+
+    const body = match[1];
+    const name = body.match(/name:\s*["']([^"']+)["']/);
+    const description = body.match(/description:\s*["']([^"']+)["']/);
+    const color = body.match(/color:\s*["']([^"']+)["']/);
+    const svg = body.match(/svg:\s*["']([^"']+)["']/);
+    const png = body.match(/png_192:\s*["']([^"']+)["']/) || body.match(/png_512:\s*["']([^"']+)["']/);
+    const catMatch = body.match(/categories:\s*\[([\s\S]*?)\]/);
+    const terminalMatch = body.match(/terminal:\s*(true|false)/);
+    const appId = body.match(/appId:\s*["']([^"']+)["']/);
+    const bundleId = body.match(/bundleId:\s*["']([^"']+)["']/);
+
+    const result: AppMeta = {};
+    if (name) result.name = name[1];
+    if (description) result.description = description[1];
+    if (color) result.color = color[1];
+
+    if (svg || png) {
+      result.icons = {};
+      if (svg) result.icons.svg = svg[1];
+      else if (png) result.icons.png_192 = png[1];
+    }
+
+    const categories = catMatch?.[1]
+      ?.split(",")
+      .map((s: string) => s.trim().replace(/["']/g, ""))
+      .filter(Boolean);
+    const terminal = terminalMatch?.[1] === "true" ? true : terminalMatch?.[1] === "false" ? false : undefined;
+
+    if (categories || terminal !== undefined) {
+      result.platforms = {};
+      if (categories || terminal !== undefined) {
+        result.platforms.linux = {};
+        if (categories) result.platforms.linux.categories = categories;
+        if (terminal !== undefined) result.platforms.linux.terminal = terminal;
+      }
+    }
+    if (appId) {
+      result.platforms = result.platforms || {};
+      result.platforms.windows = { appId: appId[1] };
+    }
+    if (bundleId) {
+      result.platforms = result.platforms || {};
+      result.platforms.mac = { bundleId: bundleId[1] };
+    }
+
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function resolveIcon(cliIcon: string | undefined, appMeta: AppMeta, entryPath: string, appName: string): string | undefined {
+  if (cliIcon) {
+    const resolved = path.isAbsolute(cliIcon) ? cliIcon : path.resolve(process.cwd(), cliIcon);
+    if (fs.existsSync(resolved)) return resolved;
+    logger.warn(`[icon] --icon path not found: ${resolved}`);
+  }
+
+  const iconRel = appMeta.icons?.svg || appMeta.icons?.png_192 || appMeta.icons?.png_512;
+  if (iconRel) {
+    const resolved = path.resolve(path.dirname(entryPath), iconRel);
+    if (fs.existsSync(resolved)) return resolved;
+    logger.warn(`[icon] @AppMeta icon not found: ${resolved}`);
+  }
+
+  const placeholderPath = path.resolve(path.dirname(entryPath), `${appName}.svg`);
+  const svg = generatePlaceholderSvg(appName, appMeta.color || "#4A90D9");
+  fs.writeFileSync(placeholderPath, svg);
+  logger.info(`[icon] Generated placeholder: ${placeholderPath}`);
+  return placeholderPath;
+}
+
+function generatePlaceholderSvg(name: string, color: string): string {
+  const initial = name.charAt(0).toUpperCase();
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">`,
+    `  <rect width="256" height="256" rx="32" fill="${color}"/>`,
+    `  <text x="128" y="160" text-anchor="middle" fill="white" font-size="120" font-family="sans-serif">${initial}</text>`,
+    `</svg>`,
+    "",
+  ].join("\n");
+}
+
+function detectAppName(): string {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf-8"));
+    return pkg.name || "mocha-app";
+  } catch {
+    return "mocha-app";
+  }
+}
+
+function sanitizeAppName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
+}
+
+interface PackageMeta {
+  name: string;
+  version: string;
+  target: string;
+  icon?: string;
+  appMeta: AppMeta;
+}
+
+async function packageProject(distDir: string, format: string, meta: PackageMeta): Promise<void> {
+  if (format === "deb") {
+    if (process.platform !== "linux") {
+      logger.warn("[package] .deb requires Linux — skipping");
+      return;
+    }
+    const { packageDeb } = await import("./package-deb.js");
+    await packageDeb(distDir, meta);
+    return;
+  }
+
+  if (format === "appimage") {
+    if (process.platform !== "linux") {
+      logger.warn("[package] .AppImage requires Linux — skipping");
+      return;
+    }
+    const { packageAppImage } = await import("./package-appimage.js");
+    await packageAppImage(distDir, meta);
+    return;
+  }
+
+  if (format === "exe") {
+    const { packageExe } = await import("./package-exe.js");
+    await packageExe(distDir, meta);
+    return;
+  }
+
+  if (format === "dmg") {
+    logger.warn("[package] .dmg packaging not yet implemented");
+    return;
+  }
 }

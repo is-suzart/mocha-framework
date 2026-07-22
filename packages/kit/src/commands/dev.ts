@@ -44,5 +44,19 @@ function findEntry(): string | null {
       return candidate;
     }
   }
+  return findQmlTsFile();
+}
+
+function findQmlTsFile(): string | null {
+  const srcDir = path.resolve(process.cwd(), "src");
+  if (!fs.existsSync(srcDir)) return null;
+  try {
+    for (const entry of fs.readdirSync(srcDir, { recursive: true })) {
+      const name = String(entry);
+      if (name.endsWith(".qml.ts")) {
+        return path.join("src", name);
+      }
+    }
+  } catch {}
   return null;
 }

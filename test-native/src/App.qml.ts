@@ -7,6 +7,7 @@ import {
   Injectable,
   inject,
   QComputedProperty,
+  AppMeta,
   effect
 } from "@mocha/core";
 import { QMLComponent, qml, runApp, QMLTextField, viewChild } from "@mocha/qml";
@@ -32,6 +33,16 @@ export class CounterState extends QObject {
 
 // ── Main app ──
 
+@AppMeta({
+  name: "Bridge Test",
+  shortName: "Bridge",
+  description: "Mocha framework bridge test application",
+  color: "#cba6f7",
+  platforms: {
+    web: { ogType: "website" },
+    linux: { categories: ["Development"] },
+  },
+})
 @QMLComponent({
   autoBind: true,
   qml: qml`
