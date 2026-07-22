@@ -60,6 +60,7 @@ Item {
     }
 
     readonly property string actualColor: {
+        if (variant === "primary") return "primary"
         if (variant === "danger") return "red"
         if (variant === "success") return "green"
         if (variant === "warning") return "yellow"

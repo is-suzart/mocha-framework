@@ -4,6 +4,8 @@ import QtQuick
 Item {
     id: root
 
+    Component.onCompleted: root._refreshFromBrand()
+
     // ==========================================
     // Universal Overlay Stacking Order Manager
     // ==========================================
@@ -78,12 +80,9 @@ Item {
         return luminance < 0.5;
     }
 
-    readonly property bool isDark: {
-        if (useSystemTheme) {
-            return isDarkColor(sysPalette.window)
-        }
-        return flavor !== "latte" && flavor !== "vercel-light"
-    }
+    readonly property bool isDark: useSystemTheme
+        ? isDarkColor(sysPalette.window)
+        : root._brandIsDark
 
     function getColor(name) {
         if (useSystemTheme) {
@@ -145,19 +144,6 @@ Item {
         return ThemeGenerated.resolveColor(flavor, name);
     }
 
-    // Brand theme overrides — set via bridge context property _brandTheme
-    function _resolveScheme(name) {
-        var _brand = _brandTheme !== undefined ? _brandTheme : null
-        if (_brand && _brand[name] !== undefined) return _brand[name]
-        return root.getColor(_schemeFallback(name))
-    }
-
-    function _resolveTypeOverride(name, fallback) {
-        var _brand = _brandTheme !== undefined ? _brandTheme : null
-        if (_brand && _brand[name] !== undefined) return _brand[name]
-        return fallback
-    }
-
     function _schemeFallback(schemeKey) {
         switch (schemeKey) {
             case "schemePrimary": return "mauve"
@@ -185,27 +171,94 @@ Item {
     }
 
     // ── Semantic Color Scheme (Material-like API) ──
+    // Mutable properties manually synced from _brandTheme via Connections
+    // because QML binding dependency tracking on QQmlPropertyMap properties
+    // does NOT reliably trigger re-evaluation inside singleton singletons.
+
+    property color schemePrimary: root.getColor("mauve")
+    property color schemeOnPrimary: root.getColor(root.isDark ? "crust" : "base")
+    property color schemePrimaryContainer: root.getColor(root.isDark ? "surface2" : "surface0")
+    property color schemeOnPrimaryContainer: root.getColor("text")
+    property color schemeSecondary: root.getColor("blue")
+    property color schemeOnSecondary: root.getColor(root.isDark ? "crust" : "base")
+    property color schemeSecondaryContainer: root.getColor(root.isDark ? "surface1" : "surface0")
+    property color schemeOnSecondaryContainer: root.getColor("text")
+    property color schemeTertiary: root.getColor("teal")
+    property color schemeOnTertiary: root.getColor(root.isDark ? "crust" : "base")
+    property color schemeSurface: root.getColor("surface0")
+    property color schemeOnSurface: root.getColor("text")
+    property color schemeSurfaceVariant: root.getColor("surface1")
+    property color schemeOnSurfaceVariant: root.getColor("subtext0")
+    property color schemeBackground: root.getColor("base")
+    property color schemeOnBackground: root.getColor("text")
+    property color schemeError: root.getColor("red")
+    property color schemeOnError: root.getColor(root.isDark ? "crust" : "base")
+    property color schemeOutline: root.getColor("overlay0")
+    property color schemeOutlineVariant: root.getColor("overlay1")
+
+    function _refreshFromBrand() {
+        if (typeof _brandTheme === "undefined" || _brandTheme === null) return
+        var b = _brandTheme
+        if (b.schemePrimary !== undefined) root.schemePrimary = b.schemePrimary
+        if (b.schemeOnPrimary !== undefined) root.schemeOnPrimary = b.schemeOnPrimary
+        if (b.schemePrimaryContainer !== undefined) root.schemePrimaryContainer = b.schemePrimaryContainer
+        if (b.schemeOnPrimaryContainer !== undefined) root.schemeOnPrimaryContainer = b.schemeOnPrimaryContainer
+        if (b.schemeSecondary !== undefined) root.schemeSecondary = b.schemeSecondary
+        if (b.schemeOnSecondary !== undefined) root.schemeOnSecondary = b.schemeOnSecondary
+        if (b.schemeSecondaryContainer !== undefined) root.schemeSecondaryContainer = b.schemeSecondaryContainer
+        if (b.schemeOnSecondaryContainer !== undefined) root.schemeOnSecondaryContainer = b.schemeOnSecondaryContainer
+        if (b.schemeTertiary !== undefined) root.schemeTertiary = b.schemeTertiary
+        if (b.schemeOnTertiary !== undefined) root.schemeOnTertiary = b.schemeOnTertiary
+        if (b.schemeSurface !== undefined) root.schemeSurface = b.schemeSurface
+        if (b.schemeOnSurface !== undefined) root.schemeOnSurface = b.schemeOnSurface
+        if (b.schemeSurfaceVariant !== undefined) root.schemeSurfaceVariant = b.schemeSurfaceVariant
+        if (b.schemeOnSurfaceVariant !== undefined) root.schemeOnSurfaceVariant = b.schemeOnSurfaceVariant
+        if (b.schemeBackground !== undefined) root.schemeBackground = b.schemeBackground
+        if (b.schemeOnBackground !== undefined) root.schemeOnBackground = b.schemeOnBackground
+        if (b.schemeError !== undefined) root.schemeError = b.schemeError
+        if (b.schemeOnError !== undefined) root.schemeOnError = b.schemeOnError
+        if (b.schemeOutline !== undefined) root.schemeOutline = b.schemeOutline
+        if (b.schemeOutlineVariant !== undefined) root.schemeOutlineVariant = b.schemeOutlineVariant
+        root._refreshIsDark()
+    }
+
+    property bool _brandIsDark: flavor !== "latte" && flavor !== "vercel-light"
+    function _refreshIsDark() {
+        var d = _brandTheme ? _brandTheme.isDark : undefined
+        if (d !== undefined) {
+            root._brandIsDark = (d === "true" || d === true)
+        }
+    }
+
+    Connections {
+        target: typeof _brandTheme !== "undefined" && _brandTheme !== null ? _brandTheme : null
+        function onSeqChanged() {
+            root._refreshFromBrand()
+        }
+    }
+
+    // Alias to preserve Theme.scheme.xxx backward compat
     readonly property QtObject scheme: QtObject {
-        readonly property color primary: root._resolveScheme("schemePrimary")
-        readonly property color onPrimary: root._resolveScheme("schemeOnPrimary")
-        readonly property color primaryContainer: root._resolveScheme("schemePrimaryContainer")
-        readonly property color onPrimaryContainer: root._resolveScheme("schemeOnPrimaryContainer")
-        readonly property color secondary: root._resolveScheme("schemeSecondary")
-        readonly property color onSecondary: root._resolveScheme("schemeOnSecondary")
-        readonly property color secondaryContainer: root._resolveScheme("schemeSecondaryContainer")
-        readonly property color onSecondaryContainer: root._resolveScheme("schemeOnSecondaryContainer")
-        readonly property color tertiary: root._resolveScheme("schemeTertiary")
-        readonly property color onTertiary: root._resolveScheme("schemeOnTertiary")
-        readonly property color surface: root._resolveScheme("schemeSurface")
-        readonly property color onSurface: root._resolveScheme("schemeOnSurface")
-        readonly property color surfaceVariant: root._resolveScheme("schemeSurfaceVariant")
-        readonly property color onSurfaceVariant: root._resolveScheme("schemeOnSurfaceVariant")
-        readonly property color background: root._resolveScheme("schemeBackground")
-        readonly property color onBackground: root._resolveScheme("schemeOnBackground")
-        readonly property color error: root._resolveScheme("schemeError")
-        readonly property color onError: root._resolveScheme("schemeOnError")
-        readonly property color outline: root._resolveScheme("schemeOutline")
-        readonly property color outlineVariant: root._resolveScheme("schemeOutlineVariant")
+        readonly property color primary: root.schemePrimary
+        readonly property color onPrimary: root.schemeOnPrimary
+        readonly property color primaryContainer: root.schemePrimaryContainer
+        readonly property color onPrimaryContainer: root.schemeOnPrimaryContainer
+        readonly property color secondary: root.schemeSecondary
+        readonly property color onSecondary: root.schemeOnSecondary
+        readonly property color secondaryContainer: root.schemeSecondaryContainer
+        readonly property color onSecondaryContainer: root.schemeOnSecondaryContainer
+        readonly property color tertiary: root.schemeTertiary
+        readonly property color onTertiary: root.schemeOnTertiary
+        readonly property color surface: root.schemeSurface
+        readonly property color onSurface: root.schemeOnSurface
+        readonly property color surfaceVariant: root.schemeSurfaceVariant
+        readonly property color onSurfaceVariant: root.schemeOnSurfaceVariant
+        readonly property color background: root.schemeBackground
+        readonly property color onBackground: root.schemeOnBackground
+        readonly property color error: root.schemeError
+        readonly property color onError: root.schemeOnError
+        readonly property color outline: root.schemeOutline
+        readonly property color outlineVariant: root.schemeOutlineVariant
     }
 
     // Colors (retrocompatível — raw palette)
@@ -215,9 +268,18 @@ Item {
         readonly property color mantle: root.getColor("mantle")
         readonly property color crust: root.getColor("crust")
 
-        readonly property color text: root.getColor("text")
-        readonly property color subtext1: root.getColor("subtext1")
-        readonly property color subtext0: root.getColor("subtext0")
+        readonly property color text: root.schemeOnBackground
+        readonly property color subtext1: {
+            if (_brandTheme && _brandTheme.schemeOnSurfaceVariant !== undefined) return _brandTheme.schemeOnSurfaceVariant
+            return root.getColor("subtext1")
+        }
+        readonly property color subtext0: {
+            if (_brandTheme && _brandTheme.schemeOnSurfaceVariant !== undefined) {
+                var c = _brandTheme.schemeOnSurfaceVariant
+                return Qt.rgba(c.r, c.g, c.b, 0.7)
+            }
+            return root.getColor("subtext0")
+        }
 
         readonly property color overlay2: root.getColor("overlay2")
         readonly property color overlay1: root.getColor("overlay1")
@@ -246,13 +308,13 @@ Item {
         readonly property color contrastDark: root.getColor("contrastDark")
         readonly property color contrastLight: root.getColor("contrastLight")
 
-        // Semantic Colors
-        readonly property color background: base
-        readonly property color primary: mauve
-        readonly property color secondary: blue
+        // Semantic Colors (use brand-aware scheme when available)
+        readonly property color background: root.schemeBackground
+        readonly property color primary: root.schemePrimary
+        readonly property color secondary: root.schemeSecondary
         readonly property color success: green
         readonly property color warning: yellow
-        readonly property color danger: red
+        readonly property color danger: root.schemeError
         readonly property color info: sky
     }
 
@@ -268,11 +330,40 @@ Item {
     // Typography Config
     readonly property QtObject typography: QtObject {
         // Font Families (overridable via _brandTheme)
-        readonly property string family: root._resolveTypeOverride("typeFamily", root.fontFamily)
-        readonly property string familyMedium: root._resolveTypeOverride("typeFamilyMedium", root.fontFamilyMedium)
-        readonly property string familyBold: root._resolveTypeOverride("typeFamilyBold", root.fontFamilyBold)
-        readonly property string familyDisplay: root._resolveTypeOverride("typeFamilyDisplay", "Geist")
-        readonly property string familyMono: root._resolveTypeOverride("typeFamilyMono", "Geist Mono")
+        readonly property string family: {
+            var b = (typeof _brandTheme !== "undefined" && _brandTheme !== null) ? _brandTheme : null
+            if (b && b.typeFamily !== undefined) return b.typeFamily
+            return root.fontFamily
+        }
+        readonly property string familyMedium: {
+            var b = (typeof _brandTheme !== "undefined" && _brandTheme !== null) ? _brandTheme : null
+            if (b) {
+                if (b.typeFamilyMedium !== undefined) return b.typeFamilyMedium
+                if (b.typeFamily !== undefined) return b.typeFamily
+            }
+            return root.fontFamilyMedium
+        }
+        readonly property string familyBold: {
+            var b = (typeof _brandTheme !== "undefined" && _brandTheme !== null) ? _brandTheme : null
+            if (b) {
+                if (b.typeFamilyBold !== undefined) return b.typeFamilyBold
+                if (b.typeFamily !== undefined) return b.typeFamily
+            }
+            return root.fontFamilyBold
+        }
+        readonly property string familyDisplay: {
+            var b = (typeof _brandTheme !== "undefined" && _brandTheme !== null) ? _brandTheme : null
+            if (b) {
+                if (b.typeFamilyDisplay !== undefined) return b.typeFamilyDisplay
+                if (b.typeFamily !== undefined) return b.typeFamily
+            }
+            return "Geist"
+        }
+        readonly property string familyMono: {
+            var b = (typeof _brandTheme !== "undefined" && _brandTheme !== null) ? _brandTheme : null
+            if (b && b.typeFamilyMono !== undefined) return b.typeFamilyMono
+            return "Geist Mono"
+        }
 
         // Font Sizes
         readonly property real sizeXs: 10

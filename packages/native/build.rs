@@ -39,10 +39,28 @@ fn main() {
         panic!("moc failed — check Qt6 installation");
     }
 
+    // Generate moc file for mocha_list_model.h
+    let moc_list_out = src_dir.join("mocha_list_model.moc");
+    let mut moc_list = Command::new(&qt.moc);
+    for inc in &qt.include_dirs {
+        moc_list.arg("-I").arg(inc);
+    }
+    moc_list.arg("-I").arg(&src_dir);
+    let moc_list_status = moc_list
+        .arg("-o")
+        .arg(&moc_list_out)
+        .arg(src_dir.join("mocha_list_model.h"))
+        .status()
+        .expect("moc (list_model) failed — is Qt6 installed?");
+    if !moc_list_status.success() {
+        panic!("moc (list_model) failed — check Qt6 installation");
+    }
+
     // Compile C++ bridge
     let mut cc = cc::Build::new();
     cc.cpp(true)
         .file("src/qt_bridge.cpp")
+        .file("src/mocha_list_model.cpp")
         .std("c++17")
         .pic(true);
 
@@ -90,6 +108,8 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=src/qt_bridge.cpp");
+    println!("cargo:rerun-if-changed=src/mocha_list_model.cpp");
+    println!("cargo:rerun-if-changed=src/mocha_list_model.h");
     println!("cargo:rerun-if-env-changed=QT6_DIR");
 }
 

@@ -25,7 +25,7 @@ export {
 } from "./palettes";
 export type { Palette, FlavorName, ColorKey } from "./palettes";
 
-export { ColorScheme } from "./color-scheme";
+export { ColorScheme, contrastRatio } from "./color-scheme";
 export type { ColorSchemeColors } from "./color-scheme";
 
 export { ThemeData } from "./theme-data";

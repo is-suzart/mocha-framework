@@ -18,7 +18,12 @@ export declare function nativeProxySetBool(proxyId: number, name: string, value:
 export declare function nativeProxyGetValue(proxyId: number, name: string): string;
 export declare function nativeProxyHasPendingCalls(proxyId: number): boolean;
 export declare function nativeProxyDrainPendingCalls(proxyId: number): string[];
+export declare function nativeProxySetQobject(proxyId: number, name: string, qobjId: number): void;
 export declare function nativeEngineSetContext(engine: number, name: string, proxyId: number): void;
+export declare function nativeCreateListModel(): number;
+export declare function nativeDestroyListModel(modelId: number): void;
+export declare function nativeModelSetRows(modelId: number, json: string): void;
+export declare function nativeModelClear(modelId: number): void;
 export declare function nativeFindChildByName(parentId: number, name: string): number;
 export declare function qmlRegisterAppObjects(engine: number): void;
 export declare function qmlListRootObjects(): number[];

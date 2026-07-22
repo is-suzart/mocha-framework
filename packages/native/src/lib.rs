@@ -13,6 +13,9 @@ extern "C" {
     fn qml_engine_close_all_windows(engine: *mut c_void);
     fn qml_engine_clear_cache(engine: *mut c_void);
     fn qml_engine_load_data(engine: *mut c_void, qml_data: *const c_char, base_path: *const c_char, import_path: *const c_char);
+    fn qml_engine_load_shell(engine: *mut c_void, import_path: *const c_char);
+    fn qml_engine_set_shell_source(engine: *mut c_void, qml_data: *const c_char);
+    fn qml_engine_set_shell_window_props(engine: *mut c_void, title: *const c_char, width: i32, height: i32);
     fn qml_engine_root_objects(engine: *mut c_void) -> *mut c_void;
     fn qt_object_get_property(obj: *mut c_void, name: *const c_char) -> *const c_char;
     fn qt_object_set_property(obj: *mut c_void, name: *const c_char, value: *const c_char);
@@ -49,6 +52,15 @@ extern "C" {
     // Window management
     fn mocha_window_set_dark_title_bar(obj: *mut c_void, dark: i32);
     fn mocha_window_start_system_move(obj: *mut c_void);
+
+    // MochaListModel
+    fn mocha_list_model_create() -> *mut c_void;
+    fn mocha_list_model_destroy(obj: *mut c_void);
+    fn mocha_list_model_set_rows(obj: *mut c_void, json: *const c_char);
+    fn mocha_list_model_clear(obj: *mut c_void);
+
+    // MochaPropertyMap QObject setter
+    fn mocha_property_map_set_qobject(obj: *mut c_void, key: *const c_char, qobj: *mut c_void);
 }
 
 struct NativeState {
@@ -146,6 +158,55 @@ pub fn native_engine_reload(engine_id: u32, qml_data: String, base_path: String,
         }
         Ok(state.alloc_id(obj))
     }
+}
+
+#[napi]
+pub fn native_engine_load_shell(engine_id: u32, import_path: Option<String>) -> Result<()> {
+    let import_path_str = import_path.unwrap_or_default();
+    let c_import = CString::new(import_path_str).map_err(|e| Error::from_reason(e.to_string()))?;
+    let state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let engine = state.get_ptr(engine_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid engine handle"))?;
+    unsafe {
+        qml_engine_load_shell(engine, c_import.as_ptr());
+    }
+    Ok(())
+}
+
+#[napi]
+pub fn native_engine_set_shell_source(engine_id: u32, qml_data: String) -> Result<()> {
+    let c_qml = CString::new(qml_data).map_err(|e| Error::from_reason(e.to_string()))?;
+    let state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let engine = state.get_ptr(engine_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid engine handle"))?;
+    unsafe {
+        qml_engine_set_shell_source(engine, c_qml.as_ptr());
+    }
+    Ok(())
+}
+
+#[napi]
+pub fn native_engine_set_shell_window_props(
+    engine_id: u32,
+    title: Option<String>,
+    width: Option<i32>,
+    height: Option<i32>,
+) -> Result<()> {
+    let c_title = title
+        .map(|t| CString::new(t).unwrap_or_default());
+    let c_title_ptr = c_title
+        .as_ref()
+        .map(|s| s.as_ptr())
+        .unwrap_or(std::ptr::null());
+    let w = width.unwrap_or(-1);
+    let h = height.unwrap_or(-1);
+    let state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let engine = state.get_ptr(engine_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid engine handle"))?;
+    unsafe {
+        qml_engine_set_shell_window_props(engine, c_title_ptr, w, h);
+    }
+    Ok(())
 }
 
 #[napi]
@@ -458,5 +519,61 @@ pub fn native_window_start_system_move(obj_id: u32) -> Result<()> {
     let obj = state.get_ptr(obj_id)
         .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid object handle"))?;
     unsafe { mocha_window_start_system_move(obj); }
+    Ok(())
+}
+
+// ── MochaListModel bindings ──
+
+#[napi]
+pub fn native_create_list_model() -> Result<u32> {
+    unsafe {
+        let model = mocha_list_model_create();
+        if model.is_null() {
+            return Err(Error::new(Status::GenericFailure, "Failed to create MochaListModel"));
+        }
+        let mut state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+        Ok(state.alloc_id(model))
+    }
+}
+
+#[napi]
+pub fn native_destroy_list_model(model_id: u32) -> Result<()> {
+    let mut state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let model = state.objects.remove(&model_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid model id"))?;
+    unsafe { mocha_list_model_destroy(model); }
+    Ok(())
+}
+
+#[napi]
+pub fn native_model_set_rows(model_id: u32, json: String) -> Result<()> {
+    let c_json = CString::new(json).map_err(|e| Error::from_reason(e.to_string()))?;
+    let state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let model = state.get_ptr(model_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid model id"))?;
+    unsafe { mocha_list_model_set_rows(model, c_json.as_ptr()); }
+    Ok(())
+}
+
+#[napi]
+pub fn native_model_clear(model_id: u32) -> Result<()> {
+    let state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let model = state.get_ptr(model_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid model id"))?;
+    unsafe { mocha_list_model_clear(model); }
+    Ok(())
+}
+
+// ── MochaPropertyMap: set QObject property ──
+
+#[napi]
+pub fn native_proxy_set_qobject(proxy_id: u32, name: String, qobj_id: u32) -> Result<()> {
+    let c_name = CString::new(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let state = STATE.lock().map_err(|e| Error::from_reason(e.to_string()))?;
+    let proxy = state.get_ptr(proxy_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid proxy handle"))?;
+    let qobj = state.get_ptr(qobj_id)
+        .ok_or_else(|| Error::new(Status::InvalidArg, "Invalid qobject handle"))?;
+    unsafe { mocha_property_map_set_qobject(proxy, c_name.as_ptr(), qobj); }
     Ok(())
 }

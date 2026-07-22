@@ -2,8 +2,12 @@ import {
   QObject,
   QProperty,
   qproperty,
+  qcomputed,
+  computed,
   Injectable,
   inject,
+  QComputedProperty,
+  AppMeta,
   effect
 } from "@mocha/core";
 import { QMLComponent, qml, runApp, QMLTextField, viewChild } from "@mocha/qml";
@@ -29,6 +33,16 @@ export class CounterState extends QObject {
 
 // ── Main app ──
 
+@AppMeta({
+  name: "Bridge Test",
+  shortName: "Bridge",
+  description: "Mocha framework bridge test application",
+  color: "#cba6f7",
+  platforms: {
+    web: { ogType: "website" },
+    linux: { categories: ["Development"] },
+  },
+})
 @QMLComponent({
   autoBind: true,
   qml: qml`
@@ -117,7 +131,7 @@ export class CounterState extends QObject {
                 }
 
                 Button {
-                  text: "Echo"
+                  text: "aA"
                   variant: "secondary"
                   onClicked: controller.echo()
                 }
@@ -128,6 +142,62 @@ export class CounterState extends QObject {
                 text: "Echo: " + controller.echoedText.value
                 font.pixelSize: Theme.typography.sizeMd
                 color: Theme.colors.yellow
+              }
+
+              Text {
+                text: "--- Array QProperty Test ---"
+                font.pixelSize: Theme.typography.sizeSm
+                color: Theme.colors.mauve
+              }
+
+              Repeater {
+                model: controller.items
+                delegate: Text {
+                  text: "  • " + modelData
+                  font.pixelSize: Theme.typography.sizeSm
+                  color: Theme.colors.text
+                }
+              }
+
+              Button {
+                text: "Add Item"
+                variant: "secondary"
+                size: "sm"
+                onClicked: controller.bridgeCall("addItem")
+              }
+
+              Text {
+                text: "--- Object Array Test (MochaListModel) ---"
+                font.pixelSize: Theme.typography.sizeSm
+                color: Theme.colors.mauve
+              }
+
+              Repeater {
+                model: controller.usuarios
+                delegate: Text {
+                  text: "  • " + name + " (" + age + ")"
+                  font.pixelSize: Theme.typography.sizeSm
+                  color: Theme.colors.text
+                }
+              }
+
+              Button {
+                text: "Add User"
+                variant: "secondary"
+                size: "sm"
+                onClicked: controller.bridgeCall("addUser")
+              }
+
+              Text {
+                text: "--- @qcomputed Test ---"
+                font.pixelSize: Theme.typography.sizeSm
+                color: Theme.colors.mauve
+              }
+
+              Text {
+                text: "Item count: " + controller.itemCount
+                font.pixelSize: Theme.typography.sizeSm
+                color: Theme.colors.teal
               }
             }
           }
@@ -169,6 +239,13 @@ export class CounterState extends QObject {
 export class AppController extends QObject {
   @qproperty count = new QProperty(0);
   @qproperty echoedText = new QProperty("");
+  @qproperty items = new QProperty(["um", "dois", "três"]);
+  @qproperty usuarios = new QProperty([
+    { name: "Fulano", age: 30 },
+    { name: "Ciclano", age: 25 },
+  ]);
+
+  @qcomputed itemCount = computed(() => `[${this.items.value.length} itens]`);
 
   counter = inject(CounterState);
   textField = viewChild("echoedText", QMLTextField);
@@ -184,6 +261,14 @@ export class AppController extends QObject {
   echo() {
     console.log("[MOCHA ECHO]", this.echoedText.value);
     this.textField.text = "";
+  }
+
+  addItem() {
+    this.items.update(items => [...items, "item-" + (items.length + 1)]);
+  }
+
+  addUser() {
+    this.usuarios.update(users => [...users, { name: "Novo-" + (users.length + 1), age: 20 + users.length }]);
   }
 
   routeLeave(path: string) {

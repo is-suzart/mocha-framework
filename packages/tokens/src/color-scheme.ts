@@ -93,6 +93,14 @@ function luminance(hex: string): number {
   return 0.2126 * srgb(r) + 0.7152 * srgb(g) + 0.0722 * srgb(b);
 }
 
+export function contrastRatio(fg: string, bg: string): number {
+  const l1 = luminance(fg);
+  const l2 = luminance(bg);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 function contrastText(bg: string, dark: string, light: string): string {
   return luminance(bg) > 0.5 ? dark : light;
 }
@@ -230,13 +238,13 @@ export class ColorScheme implements ColorSchemeColors {
     // Surface tonal palette
     const baseHue = h;
     const baseSat = 8;
-    const background = hslToHex(baseHue, baseSat, isDark ? 8 : 96);
+    const background = hslToHex(baseHue, baseSat, isDark ? 12 : 96);
     const onBackground = hslToHex(baseHue, 5, isDark ? 90 : 12);
 
-    const surface = hslToHex(baseHue, baseSat + 2, isDark ? 14 : 94);
+    const surface = hslToHex(baseHue, baseSat + 2, isDark ? 18 : 94);
     const onSurface = onBackground;
 
-    const surfaceVariant = hslToHex(baseHue, baseSat + 1, isDark ? 20 : 90);
+    const surfaceVariant = hslToHex(baseHue, baseSat + 1, isDark ? 24 : 90);
     const onSurfaceVariant = hslToHex(baseHue, 4, isDark ? 78 : 30);
 
     // Outline — surface with opacity

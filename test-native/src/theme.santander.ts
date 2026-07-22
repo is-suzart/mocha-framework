@@ -5,19 +5,25 @@ export const santanderDark = ThemeData.brand("#ee0000", true, {
   typography: {
     family: "Inter",
   },
+  colorScheme: {
+    onBackground: "#ffffff",
+    onSurface: "#ffffff",
+    onSurfaceVariant: "#cccccc",
+    background: "#1a1414",
+    surface: "#2e2222",
+  },
 });
 
-export const santanderLight = santanderDark.copyWith({
+export const santanderLight = ThemeData.brand("#ee0000", false, {
+  typography: { family: "Inter" },
   colorScheme: {
-    background: "#ffffff",
-    surface: "#f5f5f5",
+    background: "#fafaf5",
+    surface: "#f5f5ee",
+    surfaceVariant: "#ebebe0",
     onSurface: "#1a1a1a",
     onBackground: "#1a1a1a",
-    primary: "#ee0000",
-    onPrimary: "#ffffff",
-    outline: "#e0e0e0",
-    outlineVariant: "#f0f0f0",
-    surfaceVariant: "#eeeeee",
-    onSurfaceVariant: "#666666",
+    onSurfaceVariant: "#555555",
+    outline: "#d4d4c8",
+    outlineVariant: "#e8e8dc",
   },
 });

@@ -95,6 +95,7 @@ export class ThemeData {
     for (const [key, value] of Object.entries(cs)) {
       result[`scheme${key.charAt(0).toUpperCase() + key.slice(1)}`] = value;
     }
+    result["isDark"] = this.isDark ? "true" : "false";
     if (this.typography.family !== typography.family) {
       result["typeFamily"] = this.typography.family;
     }
