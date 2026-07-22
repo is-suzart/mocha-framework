@@ -133,6 +133,32 @@ export async function run(args: string[]): Promise<void> {
     hint: !nativeBinary ? "Run: npx napi build --platform --release (in node_modules/@mocha/native)" : undefined,
   });
 
+  const dpkgDeb = sh("which dpkg-deb 2>/dev/null") || sh("dpkg-deb --help 2>&1 | head -1");
+  const haveZip = !!(sh("zip --version 2>/dev/null") || sh("7z --help 2>&1"));
+  const linuxdeploy = sh("which linuxdeploy 2>/dev/null") || sh("which linuxdeploy-x86_64.AppImage 2>/dev/null");
+
+  results.push({
+    name: "Packaging: dpkg-deb",
+    ok: !!dpkgDeb,
+    path: dpkgDeb?.trim() || undefined,
+    hint: !dpkgDeb ? "Install via: sudo apt install dpkg-dev" : undefined,
+  });
+
+  results.push({
+    name: "Packaging: zip/7z",
+    ok: haveZip,
+    hint: !haveZip ? "For .exe packaging: sudo apt install zip (or p7zip-full for 7z)" : undefined,
+  });
+
+  results.push({
+    name: "Packaging: linuxdeploy",
+    ok: !!linuxdeploy,
+    path: linuxdeploy?.trim() || undefined,
+    hint: !linuxdeploy
+      ? "For .AppImage: download linuxdeploy-x86_64.AppImage → chmod +x → put in PATH"
+      : undefined,
+  });
+
   console.log("  Dependencies:\n");
   for (const r of results) {
     const icon = r.ok ? "✅" : "❌";

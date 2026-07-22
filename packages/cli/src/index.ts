@@ -29,7 +29,7 @@ program.addCommand(addCommand);
 
 function registerDevCommand() {
   return new Command('dev')
-    .argument('[entry]', 'entry file (default: auto-detect)', 'src/App.qml.ts')
+    .argument('[entry]', 'entry file (default: auto-detect)')
     .description('start dev server with HMR (hot module reload)')
     .action(async (entry: string) => {
       const { run } = await import('../../kit/dist/commands/dev.js');
@@ -39,18 +39,26 @@ function registerDevCommand() {
 
 function registerBuildCommand() {
   return new Command('build')
-    .argument('[entry]', 'entry file', 'src/App.qml.ts')
+    .argument('[entry]', 'entry file')
     .option('-o, --output <dir>', 'output directory', 'dist')
     .option('--minify', 'minify output', false)
     .option('--no-sourcemap', 'disable sourcemaps', false)
+    .option('--format <fmt>', 'package format: deb, appimage, exe, dmg')
+    .option('--name <name>', 'application name for packaging')
+    .option('--app-version <ver>', 'application version for packaging', '0.1.0')
+    .option('--icon <path>', 'application icon (png or svg) for packaging')
     .description('build Mocha application (TS + QML)')
-    .action(async (entry: string, opts: { output: string; minify: boolean; sourcemap: boolean }) => {
+    .action(async (entry: string, opts: { output: string; minify: boolean; sourcemap: boolean; format?: string; name?: string; version?: string; icon?: string }) => {
       const { run } = await import('../../kit/dist/commands/build.js');
       await run([
         entry,
         '--output', opts.output,
         ...(opts.minify ? ['--minify'] : []),
         ...(opts.sourcemap ? [] : ['--no-sourcemap']),
+        ...(opts.format ? ['--format', opts.format] : []),
+        ...(opts.name ? ['--name', opts.name] : []),
+        ...(opts.version ? ['--app-version', opts.version] : []),
+        ...(opts.icon ? ['--icon', opts.icon] : []),
       ]);
     });
 }
