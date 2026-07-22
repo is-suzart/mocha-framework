@@ -12,7 +12,7 @@ import { santanderDark, santanderLight } from "./theme.santander.js";
     ApplicationWindow {
       id: root
       width: 500
-      height: 550
+      height: 700
       visible: true
       title: "MochaDS Test"
       color: Theme.scheme.background
@@ -66,6 +66,33 @@ import { santanderDark, santanderLight } from "./theme.santander.js";
           text: "Toggle Dark / Light"
           variant: "primary"
           onClicked: controller.bridgeCall("toggleTheme")
+        }
+
+        // Native Text (plain QtQuick, NOT Span) — vive com themer
+        Text {
+          text: "Text nativo: scheme.onBackground = " + Theme.scheme.onBackground
+          color: Theme.scheme.onBackground
+          font.pixelSize: 14
+        }
+        Text {
+          text: "Text nativo: scheme.onSurface = " + Theme.scheme.onSurface
+          color: Theme.scheme.onSurface
+          font.pixelSize: 14
+        }
+        Text {
+          text: "Text nativo: colors.text = " + Theme.colors.text
+          color: Theme.colors.text
+          font.pixelSize: 14
+        }
+        Text {
+          text: "Text nativo: colors.primary = " + Theme.colors.primary
+          color: Theme.colors.primary
+          font.pixelSize: 14
+        }
+        Text {
+          text: "Texto fixo branco (referencia)"
+          color: "#ffffff"
+          font.pixelSize: 14
         }
       }
     }
