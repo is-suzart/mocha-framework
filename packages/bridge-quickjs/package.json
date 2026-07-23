@@ -1,0 +1,13 @@
+{
+  "name": "@mocha/bridge-quickjs",
+  "version": "0.1.0",
+  "description": "Mocha Bridge QuickJS - Standalone C++ binary binding QuickJS + Qt",
+  "type": "module",
+  "scripts": {
+    "build": "cmake -B build -S . && cmake --build build",
+    "clean": "rm -rf build"
+  },
+  "dependencies": {
+    "@mocha/bridge-qt": "workspace:*"
+  }
+}

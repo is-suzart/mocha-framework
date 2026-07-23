@@ -1,0 +1,27 @@
+{
+  "name": "bridge-test",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mocha dev src/App.qml.ts",
+    "build": "tsc && mocha build src/App.qml.ts",
+    "type-gen": "mocha type-gen ./src",
+    "doctor": "mocha doctor",
+    "postinstall": "echo 'bridge-test: native binary must be built separately (cd packages/bridge-napi && npm run build)'"
+  },
+  "dependencies": {
+    "@mocha/bridge-napi": "workspace:*",
+    "@mocha/core": "workspace:*",
+    "@mocha/native": "workspace:*",
+    "@mocha/qml": "workspace:*",
+    "@mocha/shared": "workspace:*",
+    "@mocha/tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@mocha/cli": "workspace:*",
+    "@mocha/kit": "workspace:*",
+    "typescript": "^5.5.0",
+    "tsx": "^4.15.0"
+  }
+}

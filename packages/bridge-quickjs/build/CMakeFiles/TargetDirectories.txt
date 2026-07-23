@@ -1,0 +1,3 @@
+/home/savunma/.gemini/antigravity/scratch/mocha-framework/packages/bridge-quickjs/build/CMakeFiles/mocha-quickjs.dir
+/home/savunma/.gemini/antigravity/scratch/mocha-framework/packages/bridge-quickjs/build/CMakeFiles/edit_cache.dir
+/home/savunma/.gemini/antigravity/scratch/mocha-framework/packages/bridge-quickjs/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/savunma/.gemini/antigravity/scratch/mocha-framework/packages/bridge-quickjs/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

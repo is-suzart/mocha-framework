@@ -1,0 +1,3 @@
+# Hashes of file build rules.
+8954e315abe01c343588bcdf733123b7 /home/savunma/.gemini/antigravity/scratch/mocha-framework/packages/bridge-qt/src/mocha_list_model.moc
+8dc95d09df52d77b28276ee8b2db0858 /home/savunma/.gemini/antigravity/scratch/mocha-framework/packages/bridge-qt/src/qt_bridge.moc

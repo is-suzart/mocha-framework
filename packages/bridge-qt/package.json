@@ -1,0 +1,10 @@
+{
+  "name": "@mocha/bridge-qt",
+  "version": "0.1.0",
+  "description": "Mocha Bridge Qt - Standalone C++ Qt bridge (MochaPropertyMap, MochaDynamicObject, MochaListModel)",
+  "type": "module",
+  "scripts": {
+    "build": "cmake -B build -S . && cmake --build build",
+    "clean": "rm -rf build"
+  }
+}

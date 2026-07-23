@@ -1,0 +1,134 @@
+.playground-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.playground-card {
+  background-color: var(--ctp-mantle);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--ctp-text) 5%, transparent);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--ctp-shadow-sm);
+  height: fit-content;
+}
+
+.playground-card--preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 400px;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-group--full {
+  grid-column: span 2;
+}
+
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ctp-subtext1);
+}
+
+select, input[type="text"] {
+  background-color: var(--ctp-crust);
+  border: 1px solid color-mix(in srgb, var(--ctp-text) 10%, transparent);
+  border-radius: 8px;
+  color: var(--ctp-text);
+  padding: 10px 12px;
+  font-family: var(--ctp-font-family);
+  font-size: 0.9rem;
+  outline: none;
+  transition: var(--ctp-transition);
+}
+
+select:focus, input[type="text"]:focus {
+  border-color: var(--ctp-mauve);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+  color: var(--ctp-text);
+}
+
+.checkbox-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ctp-mauve);
+  cursor: pointer;
+}
+
+.preview-canvas {
+  flex-grow: 1;
+  background-color: var(--ctp-crust);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+  border: 1px dashed color-mix(in srgb, var(--ctp-text) 10%, transparent);
+  margin-bottom: 1.5rem;
+}
+
+.tabs-header {
+  display: flex;
+  border-bottom: 2px solid var(--ctp-surface0);
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--ctp-subtext1);
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  position: relative;
+  transition: var(--ctp-transition);
+}
+
+.tab-btn:hover {
+  color: var(--ctp-text);
+}
+
+.tab-btn.active {
+  color: var(--ctp-mauve);
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--ctp-mauve);
+}
+
+.segment-container {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}

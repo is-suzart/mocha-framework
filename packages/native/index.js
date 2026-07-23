@@ -84,6 +84,7 @@ export const {
   qmlGetAllProperties,
   nativeWindowSetDarkTitleBar,
   nativeWindowStartSystemMove,
+  nativeGetQmlObjectId,
 } = native;
 
 // High-level API
@@ -308,6 +309,10 @@ class NativeApp {
 
   setQmlProperty(objId, name, value) {
     qmlSetProperty(objId, name, String(value));
+  }
+
+  getQmlObjectId(objId) {
+    return native.nativeGetQmlObjectId(objId);
   }
 
   _buildQmlNode(id) {

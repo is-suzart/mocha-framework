@@ -5,7 +5,7 @@
   "description": "Mocha - The Qt TypeScript Framework (The bear that tames the Qt)",
   "type": "module",
   "scripts": {
-    "build": "tsc -b packages/shared packages/core packages/qml packages/kit packages/cli",
+    "build": "tsc -b packages/shared packages/bridge-api packages/core packages/qml packages/kit packages/cli",
     "build:core": "tsc -b packages/core",
     "build:qml": "tsc -b packages/qml",
     "build:kit": "tsc -b packages/kit",

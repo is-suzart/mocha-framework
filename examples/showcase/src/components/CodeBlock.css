@@ -1,0 +1,43 @@
+.code-container {
+  position: relative;
+}
+
+.code-block {
+  background-color: var(--ctp-crust);
+  border-radius: 8px;
+  padding: 1.2rem;
+  margin: 0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--ctp-text) 5%, transparent);
+  white-space: pre-wrap;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: var(--ctp-surface0);
+  border: 1px solid color-mix(in srgb, var(--ctp-text) 10%, transparent);
+  color: var(--ctp-subtext1);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--ctp-transition);
+  z-index: 2;
+}
+
+.code-copy-btn:hover {
+  color: var(--ctp-text);
+  background-color: var(--ctp-surface1);
+}
+
+.hl-tag { color: var(--ctp-mauve); }
+.hl-attr { color: var(--ctp-blue); }
+.hl-str { color: var(--ctp-green); }
+.hl-text { color: var(--ctp-text); }
+.hl-comment { color: var(--ctp-overlay1); font-style: italic; }
